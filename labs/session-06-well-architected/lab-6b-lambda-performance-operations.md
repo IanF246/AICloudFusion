@@ -290,14 +290,16 @@ First, create the test payload file. **Step 6a:** Open your text editor and crea
 **Windows (PowerShell):**
 ```powershell
 aws lambda invoke --function-name workshop-waf-workload --payload file://workload-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 response.json
-
+```
+```
 Write-Output "=== RESULT (128 MB Memory) ===" (Get-Content response.json | ConvertFrom-Json).body
 ```
 
 **macOS / Linux:**
 ```bash
 aws lambda invoke --function-name workshop-waf-workload --payload file://workload-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 response.json
-
+```
+```
 echo "=== RESULT (128 MB Memory) ==="cat response.json
 ```
 
