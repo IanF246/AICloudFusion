@@ -144,11 +144,18 @@ git add .
 git commit -m "Session 8 starting point"
 ```
 
-**Step 3b:** Connect your local repo to the GitHub repo and push. 📋 Copy and paste, **replacing `<YOUR_GITHUB_USERNAME>`**:
+**Step 3b:** Connect your local repo to the GitHub repo. 📋 Copy and paste, **replacing `<YOUR_GITHUB_USERNAME>`**:
 
 ```
 git remote add origin https://github.com/<YOUR_GITHUB_USERNAME>/workshop-iac.git
 ```
+
+> **💡 If you see "remote origin already exists":** you added it on an earlier try. Fix it by updating the URL instead, replacing `<YOUR_GITHUB_USERNAME>`:
+> ```
+> git remote set-url origin https://github.com/<YOUR_GITHUB_USERNAME>/workshop-iac.git
+> ```
+
+Then set your branch name and push. 📋 Copy and paste:
 
 ```
 git branch -M main
@@ -158,7 +165,15 @@ git branch -M main
 git push -u origin main
 ```
 
-> **💡 If prompted to log in:** a browser window or a prompt will ask you to authenticate to GitHub. Follow it (sign in / authorize). This links your computer to your GitHub account for pushing.
+**🔑 The first push will ask you to log in to GitHub. This is where people get stuck — read this carefully:**
+
+- **Most common (Windows and Mac):** a **browser window pops open** asking you to authorize Git to access GitHub. Click **Sign in** / **Authorize**. Once you approve in the browser, the push continues automatically. This is Git Credential Manager doing its job — you only do it once.
+- **If instead the terminal asks for a "Username" and "Password":** type your GitHub username, but **for the password do NOT use your GitHub account password** — GitHub stopped accepting that in 2021. You need a **Personal Access Token (PAT)**:
+  1. Go to [github.com/settings/tokens](https://github.com/settings/tokens) → **Generate new token** → **Generate new token (classic)**
+  2. Give it a name, set an expiration, and check the **`repo`** scope
+  3. Click **Generate token** and **copy it** (you won't see it again)
+  4. Paste that token as the **password** in the terminal
+- **Easiest alternative:** install the **GitHub CLI** ([cli.github.com](https://cli.github.com/)), run `gh auth login`, and choose "Login with a web browser." After that, `git push` just works.
 
 **✅ You should see** your files uploading, ending with a line like `branch 'main' set up to track 'origin/main'`.
 
@@ -352,7 +367,8 @@ The SAA (and Security Specialty) exams test:
 
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
-| `git push` rejected / auth failed | Not authenticated to GitHub | Follow the login prompt; or use a personal access token. See GitHub's docs on authenticating from the command line. |
+| `git push` asks for a password and then fails | GitHub no longer accepts account passwords over HTTPS | Use a Personal Access Token as the password, or install GitHub CLI and run `gh auth login` — see the detailed authentication guidance in Step 3b |
+| Browser opened but push still hangs | Authorization wasn't completed | Complete the sign-in/authorize in the browser window; if it closed, re-run `git push -u origin main` |
 | Push says "updates were rejected" | The GitHub repo isn't empty (you added a README) | Recreate the repo without a README/gitignore, or run `git pull --rebase origin main` then push |
 | `EntityAlreadyExists` on the OIDC provider | A GitHub OIDC provider already exists in your account | That's fine — reuse it. Skip to Step 5. |
 | `MalformedPolicyDocument` creating the role | Placeholder not replaced in `pipeline-trust.json` | Open the file; confirm the account ID and username are filled in and it's valid JSON |

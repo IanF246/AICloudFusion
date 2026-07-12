@@ -261,7 +261,7 @@ Now the real workflow: propose a change on a branch, open a PR, and watch the pi
 git checkout -b add-versioning
 ```
 
-**Step 5b: Make a change.** In VS Code, open `infra/environments/dev/main.tf` and add this block at the bottom (after the `aws_s3_bucket "demo"` block), then save:
+**Step 5b: Make a change.** In VS Code, open `infra/environments/dev/main.tf`. Scroll to the very bottom of the file — **after the closing `}` of the `aws_s3_bucket "demo"` block** — and on a new line paste this block, then save:
 
 ```hcl
 resource "aws_s3_bucket_versioning" "demo" {
