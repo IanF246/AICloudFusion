@@ -319,13 +319,9 @@ The SAA exam tests:
 
 You've reached the end of the IaC + CI/CD track. If you want to remove everything you built across Sessions 7 and 8:
 
-**Step 1 — Destroy the application resources.** From the project root:
+**Step 1 — Destroy the application resources** using the guarded destroy workflow you built in Lab 8B: on GitHub, **Actions** → **Destroy Infrastructure** → **Run workflow** → type `destroy` in the confirm box → **Run workflow**. Wait for it to finish (green), then confirm your demo bucket is gone with `aws s3 ls`.
 
-```
-cd infra/environments/dev
-tofu destroy
-```
-Type `yes`.
+(Alternatively, run `tofu destroy` locally from `infra/environments/dev`.)
 
 **Step 2 — Remove the pipeline role and OIDC provider** (from Lab 8A's cleanup):
 

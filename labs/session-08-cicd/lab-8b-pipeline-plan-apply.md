@@ -339,6 +339,104 @@ git pull origin main
 
 ---
 
+### Step 7: Add a Guarded "Destroy" Workflow
+
+Your pipeline deploys automatically — but tearing infrastructure down should **never** be automatic. `destroy` is irreversible, so you'll build a separate workflow that only a human can trigger, and only after typing a confirmation word. This teaches an important principle: **guardrails scale with blast radius.** Additive changes (apply) are automated and reviewed; destructive changes (destroy) require deliberate human confirmation.
+
+It also gives you a clean one-click teardown for when you're done — helpful for keeping your account at $0.
+
+**Step 7a:** In VS Code, right-click `.github/workflows` → **New File** → name it exactly `destroy.yml`. 📋 Paste this, **replacing `ACCOUNT_ID_HERE`**, then save:
+
+```yaml
+name: Destroy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "destroy" to confirm tearing down the dev environment'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/environments/dev
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "destroy" ]; then
+            echo "Confirmation text was not exactly 'destroy'. Aborting - nothing was changed."
+            exit 1
+          fi
+          echo "Confirmation received. Proceeding to destroy the dev environment."
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::ACCOUNT_ID_HERE:role/github-actions-infra
+          aws-region: us-east-1
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+
+      - name: Tofu Init
+        run: tofu init
+
+      - name: Tofu Destroy
+        run: tofu destroy -auto-approve
+```
+
+**Replace `ACCOUNT_ID_HERE`** (1 place). Save.
+
+> **What makes this safe?**
+>
+> | Part | Why it matters |
+> |------|----------------|
+> | `workflow_dispatch` only (no `push`/`schedule`) | It can NEVER run automatically — only a human clicking the button starts it |
+> | `inputs: confirm` | Forces the person to type a confirmation word before the run starts |
+> | `Verify confirmation` step | Runs first (after checkout) and **aborts** unless the word is exactly `destroy` — before touching AWS |
+
+**Step 7b:** Commit and push. 📋 Copy and paste (from the project root):
+
+```
+git add .
+git commit -m "Add guarded manual destroy workflow"
+git push
+```
+
+> **💡 This push triggers the apply pipeline too, but there are no infrastructure changes, so it will report "No changes." Wait for it to finish.**
+
+**Step 7c: Test the guard (the abort path).**
+
+1. On GitHub: **Actions** → **Destroy Infrastructure** → **Run workflow**
+2. In the **confirm** box, type something wrong like `no` → **Run workflow**
+3. Wait ~30 seconds, refresh, and open the run
+
+**✅ You should see** the run **FAIL** at the **Verify confirmation** step with "Confirmation text was not exactly 'destroy'. Aborting." Your infrastructure is untouched — the guard stopped it before AWS was contacted.
+
+**Step 7d: ✅ Verify nothing was destroyed.** 📋 In your terminal:
+
+```
+aws s3 ls | Select-String "cicd-demo"
+```
+(Mac/Linux: `aws s3 ls | grep cicd-demo`)
+
+**✅ You should still see** your demo bucket — the wrong confirmation blocked the destroy.
+
+> **🎉 Guardrail proven.** A destructive pipeline that refuses to run without explicit human confirmation. You'll use this same workflow (with the correct word, `destroy`) to clean up at the end of Lab 8C.
+
+---
+
 ## What You Just Did
 
 You built and used a complete CI/CD pipeline for infrastructure:
@@ -349,12 +447,14 @@ You built and used a complete CI/CD pipeline for infrastructure:
 | Ran `plan` automatically on pull requests | Every change is previewed and reviewable before it happens |
 | Ran `apply` automatically on merge to `main` | Approved changes deploy themselves — consistent and hands-off |
 | Made a real change through the PR → merge cycle | You practiced the exact GitOps workflow real teams use |
+| Added a guarded, manual-only destroy workflow | Destructive actions require deliberate human confirmation — guardrails scale with blast radius |
 
 **Key takeaways:**
 - **Git is the source of truth.** What's on `main` is what's deployed; the pipeline enforces it.
 - **Plan-on-PR is a safety and review gate** — nobody merges a change without seeing its effect first.
 - **`id-token: write` is mandatory** for OIDC — the most common reason a pipeline fails to authenticate.
 - **The same IaC code runs locally and in CI** — only the authentication method changes.
+- **Guardrails scale with blast radius** — apply is automated; destroy is manual-only and requires a typed confirmation.
 
 > **💡 What persists:** Everything stays for Lab 8C, which adds automated drift detection on top of this pipeline. Do not delete your repo or AWS resources.
 
@@ -385,6 +485,8 @@ The SAA exam tests:
 | Plan runs on merge, or apply runs on PR | The `if:` conditions are wrong | Compare your `infra.yml` to Step 3 exactly — plan is `if: pull_request`, apply is `if: push` to main |
 | Workflow doesn't run at all | Wrong file path | It must be `.github/workflows/infra.yml` exactly, committed to `main` |
 | Backend/init fails with S3 access denied | Pipeline role missing state bucket permission | Recheck Lab 8A Step 7 — the state bucket name includes your account ID |
+| Destroy workflow's "Run workflow" button has no confirm box | The `inputs:` block is missing or malformed | Compare `destroy.yml` to Step 7a; `workflow_dispatch.inputs.confirm` must be present and it must be on `main` |
+| Destroy workflow destroyed things even with a wrong word | The `Verify confirmation` step is missing or after the AWS steps | It must run right after checkout, before the AWS/tofu steps, exactly as in Step 7a |
 
 ---
 
@@ -392,13 +494,7 @@ The SAA exam tests:
 
 > **⚠️ Keep everything for Lab 8C** (drift detection builds on this pipeline).
 
-**If you must stop entirely**, destroy the demo resource and remove the pipeline. In your terminal (from the project root):
-
-```
-cd infra/environments/dev
-tofu destroy
-```
-Type `yes`. Then follow Lab 8A's cleanup for the roles, and Lab 7A's cleanup for the state backend, if you're fully done.
+**If you must stop entirely**, tear down the demo resource using the destroy workflow you just built: **Actions** → **Destroy Infrastructure** → **Run workflow** → type `destroy` → **Run workflow**. (Or run `tofu destroy` locally from `infra/environments/dev`.) Then follow Lab 8A's cleanup for the roles, and Lab 7A's cleanup for the state backend, if you're fully done.
 
 ---
 
