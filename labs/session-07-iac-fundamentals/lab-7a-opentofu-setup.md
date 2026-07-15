@@ -503,7 +503,7 @@ You will now create five files in the `infra/environments/dev/` folder. These ar
 
 In VS Code's Explorer, expand `infra` → `environments`, then **right-click the `dev` folder** → **New File** → name it exactly `backend.tf` → press Enter.
 
-📋 Copy and paste this into the file, **replacing `<INITIALS>`** with your account ID (1 place), then **save (Ctrl+S)**:
+📋 Copy and paste this into the file, **replacing `<INITIALS>`** (1 place), then **save (Ctrl+S)**:
 
 ```hcl
 terraform {
