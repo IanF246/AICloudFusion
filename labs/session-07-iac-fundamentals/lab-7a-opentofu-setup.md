@@ -139,7 +139,7 @@ export AWS_PROFILE="<YOUR_PROFILE_NAME>"
 aws sts get-caller-identity
 ```
 
-**✅ You should see** your account ID and role.
+**✅ You should see** your account ID and role.  However, If you get an error about an expired token, run `aws sso login --profile <YOUR_PROFILE_NAME>` to reconnect the session.
 
 > **📝 Write down your Account ID** (the 12-digit number). You will need it in several steps.
 
