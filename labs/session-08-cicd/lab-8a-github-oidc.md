@@ -231,7 +231,7 @@ This trust policy is the heart of OIDC security: it says **only GitHub Actions r
         {
             "Effect": "Allow",
             "Principal": {
-                "Federated": "arn:aws:iam::ACCOUNT_ID_HERE:oidc-provider/token.actions.githubusercontent.com"
+                "Federated": "arn:aws:iam::<YOUR_ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com"
             },
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": {
@@ -239,7 +239,7 @@ This trust policy is the heart of OIDC security: it says **only GitHub Actions r
                     "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
                 },
                 "StringLike": {
-                    "token.actions.githubusercontent.com:sub": "repo:YOUR_GITHUB_USERNAME_HERE/workshop-iac:*"
+                    "token.actions.githubusercontent.com:sub": "repo:<YOUR_GITHUB_USERNAME>/workshop-iac:*"
                 }
             }
         }
@@ -247,7 +247,7 @@ This trust policy is the heart of OIDC security: it says **only GitHub Actions r
 }
 ```
 
-**Replace 2 things:** `ACCOUNT_ID_HERE` (your 12-digit account ID) and `YOUR_GITHUB_USERNAME_HERE` (your GitHub username). Save the file.
+**Replace 2 things:** `<YOUR_ACCOUNT_ID>` (your 12-digit account ID) and `<YOUR_GITHUB_USERNAME>` (your GitHub username). Save the file.
 
 > **What does the `sub` condition do?** `repo:yourname/workshop-iac:*` means only workflows from *that exact repository* can assume this role. A workflow in any other repo — even yours — is rejected. This is what makes OIDC safe: the trust is scoped to one repo.
 
@@ -279,28 +279,28 @@ The pipeline role needs to do exactly two things: **assume your deploy role** (t
             "Sid": "AssumeDeployRole",
             "Effect": "Allow",
             "Action": "sts:AssumeRole",
-            "Resource": "arn:aws:iam::ACCOUNT_ID_HERE:role/workshop-tofu-deploy-role"
+            "Resource": "arn:aws:iam::<YOUR_ACCOUNT_ID>:role/workshop-tofu-deploy-role"
         },
         {
             "Sid": "StateBucketAccess",
             "Effect": "Allow",
             "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket", "s3:DeleteObject"],
             "Resource": [
-                "arn:aws:s3:::workshop-tofu-state-ACCOUNT_ID_HERE",
-                "arn:aws:s3:::workshop-tofu-state-ACCOUNT_ID_HERE/*"
+                "arn:aws:s3:::workshop-tofu-state-<INITIALS>",
+                "arn:aws:s3:::workshop-tofu-state-<INITIALS>/*"
             ]
         },
         {
             "Sid": "StateLockAccess",
             "Effect": "Allow",
             "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"],
-            "Resource": "arn:aws:dynamodb:us-east-1:ACCOUNT_ID_HERE:table/terraform-locks"
+            "Resource": "arn:aws:dynamodb:us-east-1:<YOUR_ACCOUNT_ID>:table/terraform-locks"
         }
     ]
 }
 ```
 
-**Replace `ACCOUNT_ID_HERE` in 3 places** (the assume-role ARN, and the state bucket appears in the S3 resource lines and DynamoDB ARN). Note the state **bucket name** also includes your account ID — so `workshop-tofu-state-ACCOUNT_ID_HERE` becomes e.g. `workshop-tofu-state-123456789012`. Save the file.
+**Replace `<YOUR_ACCOUNT_ID>` in 2 places** (the assume-role ARN, and DynamoDB ARN). `<INITIALS>` in 2 places specifcally what state bucket appears in the S3 resource lines. Note the state **bucket name** also includes your initials — so `workshop-tofu-state-<INITIALS>` becomes e.g. `workshop-tofu-state-if`. Save the file.
 
 **Step 7b:** Attach the policy. 📋 Copy and paste:
 
