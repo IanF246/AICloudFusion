@@ -34,6 +34,9 @@ Work through the labs in order (A → B → C). Each lab includes:
 | 4 | Threat Detection & AWS Security Services | [Lab 4A: GuardDuty Findings](session-04-threat-detection/lab-4a-guardduty-findings.md) · [Lab 4B: CloudTrail Investigation](session-04-threat-detection/lab-4b-cloudtrail-investigation.md) · [Lab 4C: Automated Security Alerts](session-04-threat-detection/lab-4c-automated-security-alerts.md) |
 | 5 | Incident Response on AWS | [Lab 5A: Credential Revocation](session-05-incident-response/lab-5a-credential-revocation.md) · [Lab 5B: Investigate & Report](session-05-incident-response/lab-5b-investigate-and-report.md) · [Lab 5C: Automated Remediation](session-05-incident-response/lab-5c-automated-remediation.md) |
 | 6 | AWS Well-Architected Framework | [Lab 6A: S3 Security & Reliability](session-06-well-architected/lab-6a-s3-security-reliability.md) *(6B, 6C coming soon)* |
+| 7 | IaC Fundamentals with OpenTofu | [Lab 7A: OpenTofu Setup](session-07-iac-fundamentals/lab-7a-opentofu-setup.md) · [Lab 7B: Lambda with IaC](session-07-iac-fundamentals/lab-7b-lambda-with-iac.md) · [Lab 7C: Event-Driven Modules](session-07-iac-fundamentals/lab-7c-event-driven-modules.md) |
+| 8 | CI/CD for Infrastructure | [Lab 8A: GitHub OIDC](session-08-cicd/lab-8a-github-oidc.md) · [Lab 8B: Pipeline Plan & Apply](session-08-cicd/lab-8b-pipeline-plan-apply.md) · [Lab 8C: Drift Detection](session-08-cicd/lab-8c-drift-detection.md) |
+| 9 | Monitoring & Observability | [Lab 9A: CloudWatch Alarms](session-09-monitoring/lab-9a-cloudwatch-alarms.md) · [Lab 9B: Diagnose with Logs](session-09-monitoring/lab-9b-diagnose-with-logs.md) · [Lab 9C: CI Smoke Test](session-09-monitoring/lab-9c-ci-smoke-test.md) |
 
 *More sessions coming soon.*
 
