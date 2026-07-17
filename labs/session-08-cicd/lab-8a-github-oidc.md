@@ -98,6 +98,8 @@ Files are created in **VS Code** (right-click the folder → New File → exact 
 | `<YOUR_PROFILE_NAME>` | Your AWS CLI profile name | `AdministratorAccess-123456789012` |
 | `<YOUR_ACCOUNT_ID>` | Your 12-digit AWS account number | `123456789012` |
 | `<YOUR_GITHUB_USERNAME>` | Your GitHub username | `janedoe` |
+| `<GITHUB_OIDC_PREFIX>` | Your Default subject claim prefix | `janedoe@12345/workshop-iac@12345` |
+| `<INITIALS>` | Your name initials (or anything else to make your bucket name unique) | `jd` |
 
 ---
 
@@ -119,7 +121,7 @@ export AWS_PROFILE="<YOUR_PROFILE_NAME>"
 aws sts get-caller-identity
 ```
 
-**✅ You should see** your account ID. **📝 Write it down** — you'll use it several times.
+**✅ You should see** your account ID. **📝 Write it down** — you'll use it several times. Or you will get an expired sso error, which you can correct with `aws sso login --profile <YOUR_PROFILE_NAME>`.
 
 **Step 1b:** Open your project:
 
@@ -246,21 +248,16 @@ aws iam create-open-id-connect-provider --url https://token.actions.githubuserco
 
 ### Step 5: Find Your OIDC Subject Prefix
 
-GitHub's OIDC tokens include a `sub` (subject) claim that identifies which repo the workflow is running in. Some GitHub accounts include numeric IDs (like `repo:YourName@12345/repo-name@67890`), while others use a simpler format (`repo:YourName/repo-name`). **You must use the exact format your account uses**, or AWS will silently reject the token.
+GitHub's OIDC tokens include a `sub` (subject) claim that identifies which repo the workflow is running in. Some GitHub accounts include numeric IDs (like `repo:username@12345/repo-name@67890`), while others use a simpler format (`repo:userName/repo-name`). **You must use the exact format your account uses**, or AWS will silently reject the token.
 
-**Step 5a: Get your subject prefix.** 📋 Copy and paste, **replacing `<YOUR_GITHUB_USERNAME>`**:
+**Step 5a: Get your subject prefix.** 📋 
 
-```
-gh api "repos/<YOUR_GITHUB_USERNAME>/workshop-iac/actions/oidc/customization/sub" --jq ".sub_claim_prefix"
-```
+Go to your GitHub repo in the browser, select the workshop repo, and click on Settings tab. From here expand the Actions option in the left hand menu, and select OIDC. You should then see your default subject claim prefix:
 
 **✅ You should see** one of these formats printed:
-- With IDs: `repo:YourName@12345678/workshop-iac@87654321`
-- Without IDs (default): `repo:YourName/workshop-iac`
+- With IDs: `repo:userName@12345678/workshop-iac@87654321`
 
 > **📝 Copy the output exactly** — you will paste it into the trust policy in the next step.
-
-> **💡 If the command returns an error:** you may not have the GitHub CLI installed, or the repo doesn't exist yet on GitHub. As a fallback, go to `https://github.com/<YOUR_GITHUB_USERNAME>/workshop-iac/settings/actions` and look for an **"OpenID Connect"** section showing the subject prefix. If neither is available, use the default format: `repo:<YOUR_GITHUB_USERNAME>/workshop-iac`
 
 > **Why does this matter?** The trust policy tells AWS "only accept tokens whose `sub` claim starts with THIS string." If the string doesn't match what GitHub actually sends, AWS rejects the token with "Not authorized to perform sts:AssumeRoleWithWebIdentity" — even though everything else is configured correctly. This is the #1 debugging headache with OIDC.
 
@@ -270,7 +267,7 @@ gh api "repos/<YOUR_GITHUB_USERNAME>/workshop-iac/actions/oidc/customization/sub
 
 This trust policy is the heart of OIDC security: it says **only GitHub Actions running in YOUR specific repo** may assume the pipeline role.
 
-**Step 6a:** In VS Code, right-click the top-level `workshop-iac` folder → **New File** → name it exactly `pipeline-trust.json`. 📋 Paste this, **replacing `ACCOUNT_ID_HERE` and `YOUR_SUBJECT_PREFIX_HERE`**, then save:
+**Step 6a:** In VS Code, right-click the top-level `workshop-iac` folder → **New File** → name it exactly `pipeline-trust.json`. 📋 Paste this, **replacing `<YOUR_ACCOUNT_ID>` and `<GITHUB_OIDC_PREFIX>`**, then save:
 
 ```json
 {
@@ -279,7 +276,7 @@ This trust policy is the heart of OIDC security: it says **only GitHub Actions r
         {
             "Effect": "Allow",
             "Principal": {
-                "Federated": "arn:aws:iam::ACCOUNT_ID_HERE:oidc-provider/token.actions.githubusercontent.com"
+                "Federated": "arn:aws:iam::<YOUR_ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com"
             },
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": {
@@ -287,7 +284,7 @@ This trust policy is the heart of OIDC security: it says **only GitHub Actions r
                     "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
                 },
                 "StringLike": {
-                    "token.actions.githubusercontent.com:sub": "YOUR_SUBJECT_PREFIX_HERE:*"
+                    "token.actions.githubusercontent.com:sub": "<GITHUB_OIDC_PREFIX>:*"
                 }
             }
         }
@@ -296,8 +293,8 @@ This trust policy is the heart of OIDC security: it says **only GitHub Actions r
 ```
 
 **Replace 2 things:**
-1. `ACCOUNT_ID_HERE` — your 12-digit AWS account ID
-2. `YOUR_SUBJECT_PREFIX_HERE` — the exact subject prefix you found in Step 5. For example:
+1. `<YOUR_ACCOUNT_ID>` — your 12-digit AWS account ID
+2. `<GITHUB_OIDC_PREFIX>` — the exact subject prefix you found in Step 5. For example:
    - If your prefix was `repo:janedoe@12345/workshop-iac@67890`, the line becomes: `"repo:janedoe@12345/workshop-iac@67890:*"`
    - If your prefix was `repo:janedoe/workshop-iac`, the line becomes: `"repo:janedoe/workshop-iac:*"`
 
@@ -335,28 +332,28 @@ The pipeline role needs to do exactly two things: **assume your deploy role** (t
             "Sid": "AssumeDeployRole",
             "Effect": "Allow",
             "Action": "sts:AssumeRole",
-            "Resource": "arn:aws:iam::ACCOUNT_ID_HERE:role/workshop-tofu-deploy-role"
+            "Resource": "arn:aws:iam::<YOUR_ACCOUNT_ID>:role/workshop-tofu-deploy-role"
         },
         {
             "Sid": "StateBucketAccess",
             "Effect": "Allow",
             "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket", "s3:DeleteObject"],
             "Resource": [
-                "arn:aws:s3:::workshop-tofu-state-ACCOUNT_ID_HERE",
-                "arn:aws:s3:::workshop-tofu-state-ACCOUNT_ID_HERE/*"
+                "arn:aws:s3:::workshop-tofu-state-<INITIALS>",
+                "arn:aws:s3:::workshop-tofu-state-<INITIALS>/*"
             ]
         },
         {
             "Sid": "StateLockAccess",
             "Effect": "Allow",
             "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"],
-            "Resource": "arn:aws:dynamodb:us-east-1:ACCOUNT_ID_HERE:table/terraform-locks"
+            "Resource": "arn:aws:dynamodb:us-east-1:<YOUR_ACCOUNT_ID>:table/terraform-locks"
         }
     ]
 }
 ```
 
-**Replace `ACCOUNT_ID_HERE` in 3 places** (the assume-role ARN, and the state bucket appears in the S3 resource lines and DynamoDB ARN). Note the state **bucket name** also includes your account ID — so `workshop-tofu-state-ACCOUNT_ID_HERE` becomes e.g. `workshop-tofu-state-123456789012`. Save the file.
+**Replace `<YOUR_ACCOUNT_ID>` in 2 places** (the assume-role ARN, and the state bucket appears in the S3 resource lines and DynamoDB ARN). Note the state **bucket name** also includes your initials — so `workshop-tofu-state-<INITIALS>` becomes e.g. `workshop-tofu-state-jd`. Save the file.
 
 **Step 8b:** Attach the policy. 📋 Copy and paste:
 
