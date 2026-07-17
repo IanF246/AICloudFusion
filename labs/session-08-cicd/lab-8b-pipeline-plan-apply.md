@@ -156,7 +156,7 @@ output "demo_bucket" {
 
 > **⚠️ Exact names matter:** the folder must be `.github` (with the leading dot) then `workflows`, and GitHub only runs workflow files from that exact path.
 
-**Step 3b:** 📋 Paste this into `infra.yml`, **replacing `ACCOUNT_ID_HERE`**, then save:
+**Step 3b:** 📋 Paste this into `infra.yml`, **replacing `<YOUR_ACCOUNT_ID>`**, then save:
 
 ```yaml
 name: Infrastructure CI/CD
@@ -184,7 +184,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::ACCOUNT_ID_HERE:role/github-actions-infra
+          role-to-assume: arn:aws:iam::<YOUR_ACCOUNT_ID>:role/github-actions-infra
           aws-region: us-east-1
 
       - name: Setup OpenTofu
@@ -202,7 +202,7 @@ jobs:
         run: tofu apply -auto-approve
 ```
 
-**Replace `ACCOUNT_ID_HERE`** with your account ID (1 place). Save.
+**Replace `<YOUR_ACCOUNT_ID>`** with your account ID (1 place). Save.
 
 > **What does this workflow do?**
 >
