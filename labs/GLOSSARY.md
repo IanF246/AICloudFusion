@@ -25,6 +25,11 @@ A quick reference for every AWS service and concept used in the labs. Bookmark t
 | **Amazon EventBridge** | Event routing — matches events to rules and triggers actions automatically | Lab 4C |
 | **AWS Security Hub** | Aggregates security findings from multiple services into one dashboard | Session 4 (lecture) |
 | **AWS Config** | Tracks configuration changes to your resources over time | Session 4 (lecture) |
+| **Amazon CloudWatch** | Monitoring service — collects metrics, stores logs, triggers alarms | Lab 9A |
+| **CloudWatch Alarm** | A rule that watches a metric and takes action when it crosses a threshold | Lab 9A |
+| **CloudWatch Logs** | Stores text output from Lambda, EC2, and other services (log groups + streams) | Lab 9B |
+| **CloudWatch Logs Insights** | Query engine for searching and analysing logs at scale | Lab 9B |
+| **CloudWatch Dashboard** | Customizable page showing multiple metrics in a single operational view | Lab 9C |
 
 ---
 
@@ -73,6 +78,16 @@ A quick reference for every AWS service and concept used in the labs. Bookmark t
 | **Forensic Timeline** | A chronological reconstruction of events during an incident | Lab 5B |
 | **Incident Report** | A formal document recording what happened, actions taken, and lessons learned | Lab 5B |
 | **Automated Remediation** | Using Lambda to automatically fix security issues without human intervention | Lab 5C |
+| **Metric** | A single measurement tracked over time (e.g., error count, duration, invocations) | Lab 9A |
+| **Alarm State** | An alarm's current condition: OK (healthy), ALARM (threshold crossed), INSUFFICIENT_DATA (not enough data) | Lab 9A |
+| **Log Group** | A CloudWatch Logs container for logs from one source (e.g., `/aws/lambda/<function-name>`) | Lab 9B |
+| **Log Stream** | An individual sequence of log events within a log group (one per Lambda execution environment) | Lab 9B |
+| **Structured Logging** | Writing logs as JSON for machine-searchability (query by field, level, request ID) | Lab 9B |
+| **MTTD (Mean Time to Detect)** | How long between "something broke" and "we know it's broken" — alarms reduce this | Lab 9B |
+| **MTTR (Mean Time to Resolve)** | How long between "we know it's broken" and "it's fixed" — good logs reduce this | Lab 9B |
+| **Smoke Test** | A quick automated check after deployment that verifies the application runs without crashing | Lab 9C |
+| **Shift Left** | Catching problems earlier in the process (in CI, not in production) | Lab 9C |
+| **Defence in Depth** | Using multiple complementary safeguards (CI tests + monitoring + alarms) rather than relying on one | Lab 9C |
 
 ---
 
@@ -102,6 +117,17 @@ A quick reference for every AWS service and concept used in the labs. Bookmark t
 | `aws cloudtrail lookup-events` | Searches CloudTrail event history |
 | `aws events put-rule` | Creates an EventBridge rule |
 | `aws events put-targets` | Adds a target to an EventBridge rule |
+| `aws cloudwatch get-metric-statistics` | Retrieves metric data points for a specified period |
+| `aws cloudwatch put-metric-alarm` | Creates or updates a CloudWatch alarm |
+| `aws cloudwatch describe-alarms` | Shows alarm state (OK, ALARM, INSUFFICIENT_DATA) |
+| `aws cloudwatch delete-alarms` | Deletes one or more alarms |
+| `aws cloudwatch put-dashboard` | Creates or updates a CloudWatch dashboard |
+| `aws logs describe-log-groups` | Lists CloudWatch Log groups |
+| `aws logs describe-log-streams` | Lists log streams within a log group |
+| `aws logs get-log-events` | Reads log entries from a specific stream |
+| `aws logs start-query` | Starts a CloudWatch Logs Insights query |
+| `aws logs get-query-results` | Gets results from a Logs Insights query |
+| `aws lambda update-function-code` | Updates a Lambda function's code (redeploy) |
 | `aws sns create-topic` | Creates an SNS notification topic |
 | `aws sns subscribe` | Subscribes an email/endpoint to a topic |
 
