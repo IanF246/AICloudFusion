@@ -480,7 +480,7 @@ The SAA exam tests:
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
 | Workflow fails at "Configure AWS credentials" with an OIDC error | Missing `id-token: write` permission, or the trust policy `sub` doesn't match your repo | Confirm `permissions: id-token: write` is in the workflow, and the repo in Lab 8A's trust policy matches `yourname/workshop-iac` exactly |
-| `Not authorized to perform sts:AssumeRole` | The pipeline role can't assume the deploy role | Check Lab 8A Step 7 — the `AssumeDeployRole` permission and the deploy role ARN must be correct |
+| `Not authorized to perform sts:AssumeRole` | The pipeline role can't assume the deploy role | Check Lab 8A Step 8 — the `AssumeDeployRole` permission and the deploy role ARN must be correct |
 | `Error acquiring the state lock` | A previous run was interrupted | In your terminal, `cd` into the dev folder and run `tofu force-unlock <LOCK_ID>` |
 | Plan runs on merge, or apply runs on PR | The `if:` conditions are wrong | Compare your `infra.yml` to Step 3 exactly — plan is `if: pull_request`, apply is `if: push` to main |
 | Workflow doesn't run at all | Wrong file path | It must be `.github/workflows/infra.yml` exactly, committed to `main` |
