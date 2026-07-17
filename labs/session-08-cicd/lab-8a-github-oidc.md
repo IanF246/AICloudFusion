@@ -30,6 +30,32 @@ By the end of this lab, you will have:
 - ✅ Completed **Lab 7A–7C** — you must have the `workshop-iac` folder with your `infra/` structure, the state backend, and the `workshop-tofu-deploy-role`
 - ✅ AWS CLI authenticated (`aws sts get-caller-identity`)
 - ✅ A **GitHub account** — free at [github.com/signup](https://github.com/signup) if you don't have one
+- ✅ **GitHub CLI (`gh`)** installed — this lets you interact with GitHub from your terminal.
+
+  **Windows (PowerShell):**
+  ```powershell
+  winget install --id GitHub.cli
+  ```
+  > If `winget` isn't available, download the installer from [cli.github.com](https://cli.github.com/) and run it.
+
+  **macOS:**
+  ```bash
+  brew install gh
+  ```
+
+  **Linux:**
+  ```bash
+  sudo apt install gh
+  ```
+
+  **After installing, log in to GitHub CLI.** 📋 Copy and paste:
+  ```
+  gh auth login
+  ```
+  Choose: **GitHub.com** → **HTTPS** → **Login with a web browser**. Follow the browser prompt to authorize.
+
+  **Verify:** `gh auth status` should show you're logged in.
+
 - ✅ **Git** installed and **VS Code**
 
 > **⚠️ This lab builds on Session 7.** You need your `workshop-iac` project and its AWS bootstrap resources (state bucket, lock table, deploy role) intact.
@@ -218,11 +244,33 @@ aws iam create-open-id-connect-provider --url https://token.actions.githubuserco
 
 ---
 
-### Step 5: Create the Pipeline Trust Policy
+### Step 5: Find Your OIDC Subject Prefix
+
+GitHub's OIDC tokens include a `sub` (subject) claim that identifies which repo the workflow is running in. Some GitHub accounts include numeric IDs (like `repo:YourName@12345/repo-name@67890`), while others use a simpler format (`repo:YourName/repo-name`). **You must use the exact format your account uses**, or AWS will silently reject the token.
+
+**Step 5a: Get your subject prefix.** 📋 Copy and paste, **replacing `<YOUR_GITHUB_USERNAME>`**:
+
+```
+gh api "repos/<YOUR_GITHUB_USERNAME>/workshop-iac/actions/oidc/customization/sub" --jq ".sub_claim_prefix"
+```
+
+**✅ You should see** one of these formats printed:
+- With IDs: `repo:YourName@12345678/workshop-iac@87654321`
+- Without IDs (default): `repo:YourName/workshop-iac`
+
+> **📝 Copy the output exactly** — you will paste it into the trust policy in the next step.
+
+> **💡 If the command returns an error:** you may not have the GitHub CLI installed, or the repo doesn't exist yet on GitHub. As a fallback, go to `https://github.com/<YOUR_GITHUB_USERNAME>/workshop-iac/settings/actions` and look for an **"OpenID Connect"** section showing the subject prefix. If neither is available, use the default format: `repo:<YOUR_GITHUB_USERNAME>/workshop-iac`
+
+> **Why does this matter?** The trust policy tells AWS "only accept tokens whose `sub` claim starts with THIS string." If the string doesn't match what GitHub actually sends, AWS rejects the token with "Not authorized to perform sts:AssumeRoleWithWebIdentity" — even though everything else is configured correctly. This is the #1 debugging headache with OIDC.
+
+---
+
+### Step 6: Create the Pipeline Trust Policy
 
 This trust policy is the heart of OIDC security: it says **only GitHub Actions running in YOUR specific repo** may assume the pipeline role.
 
-**Step 5a:** In VS Code, right-click the top-level `workshop-iac` folder → **New File** → name it exactly `pipeline-trust.json`. 📋 Paste this, **replacing `ACCOUNT_ID_HERE` and `YOUR_GITHUB_USERNAME_HERE`**, then save:
+**Step 6a:** In VS Code, right-click the top-level `workshop-iac` folder → **New File** → name it exactly `pipeline-trust.json`. 📋 Paste this, **replacing `ACCOUNT_ID_HERE` and `YOUR_SUBJECT_PREFIX_HERE`**, then save:
 
 ```json
 {
@@ -231,7 +279,7 @@ This trust policy is the heart of OIDC security: it says **only GitHub Actions r
         {
             "Effect": "Allow",
             "Principal": {
-                "Federated": "arn:aws:iam::<YOUR_ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com"
+                "Federated": "arn:aws:iam::ACCOUNT_ID_HERE:oidc-provider/token.actions.githubusercontent.com"
             },
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": {
@@ -239,7 +287,7 @@ This trust policy is the heart of OIDC security: it says **only GitHub Actions r
                     "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
                 },
                 "StringLike": {
-                    "token.actions.githubusercontent.com:sub": "repo:<YOUR_GITHUB_USERNAME>/workshop-iac:*"
+                    "token.actions.githubusercontent.com:sub": "YOUR_SUBJECT_PREFIX_HERE:*"
                 }
             }
         }
@@ -247,13 +295,21 @@ This trust policy is the heart of OIDC security: it says **only GitHub Actions r
 }
 ```
 
-**Replace 2 things:** `<YOUR_ACCOUNT_ID>` (your 12-digit account ID) and `<YOUR_GITHUB_USERNAME>` (your GitHub username). Save the file.
+**Replace 2 things:**
+1. `ACCOUNT_ID_HERE` — your 12-digit AWS account ID
+2. `YOUR_SUBJECT_PREFIX_HERE` — the exact subject prefix you found in Step 5. For example:
+   - If your prefix was `repo:janedoe@12345/workshop-iac@67890`, the line becomes: `"repo:janedoe@12345/workshop-iac@67890:*"`
+   - If your prefix was `repo:janedoe/workshop-iac`, the line becomes: `"repo:janedoe/workshop-iac:*"`
 
-> **What does the `sub` condition do?** `repo:yourname/workshop-iac:*` means only workflows from *that exact repository* can assume this role. A workflow in any other repo — even yours — is rejected. This is what makes OIDC safe: the trust is scoped to one repo.
+> **⚠️ This must match EXACTLY what GitHub sends.** Including the `@` and numbers if present. The `:*` wildcard at the end covers all branches and events.
+
+Save the file.
+
+> **What does the `sub` condition do?** It means only workflows from *that exact repository* can assume this role. A workflow in any other repo is rejected. This is what makes OIDC safe: the trust is scoped to one repo.
 
 ---
 
-### Step 6: Create the Pipeline Role
+### Step 7: Create the Pipeline Role
 
 📋 Copy and paste (from the `workshop-iac` folder, where the file is):
 
@@ -265,11 +321,11 @@ aws iam create-role --role-name github-actions-infra --assume-role-policy-docume
 
 ---
 
-### Step 7: Give the Pipeline Role Its Permissions
+### Step 8: Give the Pipeline Role Its Permissions
 
 The pipeline role needs to do exactly two things: **assume your deploy role** (the same one you used locally in Session 7) and **read/write the state backend**. It does NOT need direct permissions on Lambda, S3 apps, etc. — because the actual resource work happens through the deploy role it assumes. This keeps the pipeline role minimal.
 
-**Step 7a:** In VS Code, right-click the `workshop-iac` folder → **New File** → `pipeline-permissions.json`. 📋 Paste this, **replacing `ACCOUNT_ID_HERE` in 3 places**, then save:
+**Step 8a:** In VS Code, right-click the `workshop-iac` folder → **New File** → `pipeline-permissions.json`. 📋 Paste this, **replacing `ACCOUNT_ID_HERE` in 3 places**, then save:
 
 ```json
 {
@@ -279,30 +335,30 @@ The pipeline role needs to do exactly two things: **assume your deploy role** (t
             "Sid": "AssumeDeployRole",
             "Effect": "Allow",
             "Action": "sts:AssumeRole",
-            "Resource": "arn:aws:iam::<YOUR_ACCOUNT_ID>:role/workshop-tofu-deploy-role"
+            "Resource": "arn:aws:iam::ACCOUNT_ID_HERE:role/workshop-tofu-deploy-role"
         },
         {
             "Sid": "StateBucketAccess",
             "Effect": "Allow",
             "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket", "s3:DeleteObject"],
             "Resource": [
-                "arn:aws:s3:::workshop-tofu-state-<INITIALS>",
-                "arn:aws:s3:::workshop-tofu-state-<INITIALS>/*"
+                "arn:aws:s3:::workshop-tofu-state-ACCOUNT_ID_HERE",
+                "arn:aws:s3:::workshop-tofu-state-ACCOUNT_ID_HERE/*"
             ]
         },
         {
             "Sid": "StateLockAccess",
             "Effect": "Allow",
             "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"],
-            "Resource": "arn:aws:dynamodb:us-east-1:<YOUR_ACCOUNT_ID>:table/terraform-locks"
+            "Resource": "arn:aws:dynamodb:us-east-1:ACCOUNT_ID_HERE:table/terraform-locks"
         }
     ]
 }
 ```
 
-**Replace `<YOUR_ACCOUNT_ID>` in 2 places** (the assume-role ARN, and DynamoDB ARN). `<INITIALS>` in 2 places specifcally what state bucket appears in the S3 resource lines. Note the state **bucket name** also includes your initials — so `workshop-tofu-state-<INITIALS>` becomes e.g. `workshop-tofu-state-if`. Save the file.
+**Replace `ACCOUNT_ID_HERE` in 3 places** (the assume-role ARN, and the state bucket appears in the S3 resource lines and DynamoDB ARN). Note the state **bucket name** also includes your account ID — so `workshop-tofu-state-ACCOUNT_ID_HERE` becomes e.g. `workshop-tofu-state-123456789012`. Save the file.
 
-**Step 7b:** Attach the policy. 📋 Copy and paste:
+**Step 8b:** Attach the policy. 📋 Copy and paste:
 
 ```
 aws iam put-role-policy --role-name github-actions-infra --policy-name pipeline-permissions --policy-document file://pipeline-permissions.json
@@ -314,7 +370,7 @@ aws iam put-role-policy --role-name github-actions-infra --policy-name pipeline-
 
 ---
 
-### Step 8: Commit the New Files
+### Step 9: Commit the New Files
 
 📋 Copy and paste (from the project root):
 
