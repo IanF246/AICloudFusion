@@ -102,7 +102,7 @@ code .
 
 **Step 2a:** In VS Code, right-click `.github/workflows` → **New File** → name it exactly `drift.yml`.
 
-**Step 2b:** 📋 Paste this, **replacing `ACCOUNT_ID_HERE`**, then save:
+**Step 2b:** 📋 Paste this, **replacing `<YOUR_ACCOUNT_ID>`**, then save:
 
 ```yaml
 name: Drift Detection
@@ -129,7 +129,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::ACCOUNT_ID_HERE:role/github-actions-infra
+          role-to-assume: arn:aws:iam::<YOUR_ACCOUNT_ID>:role/github-actions-infra
           aws-region: us-east-1
 
       - name: Setup OpenTofu
@@ -144,7 +144,7 @@ jobs:
         run: tofu plan -detailed-exitcode
 ```
 
-**Replace `ACCOUNT_ID_HERE`** (1 place). Save.
+**Replace `<YOUR_ACCOUNT_ID>`** (1 place). Save.
 
 > **⚠️ The single most important line: `tofu_wrapper: false`.** By default, the setup-opentofu action wraps the `tofu` command in a helper that **swallows the exit code**. If you leave the wrapper on, `tofu plan -detailed-exitcode` will report exit `2` (drift!) but the step will still show green — your drift detection would silently never work. `tofu_wrapper: false` makes the real exit code reach GitHub, so exit `2` correctly fails the job.
 
