@@ -345,7 +345,7 @@ Your pipeline deploys automatically — but tearing infrastructure down should *
 
 It also gives you a clean one-click teardown for when you're done — helpful for keeping your account at $0.
 
-**Step 7a:** In VS Code, right-click `.github/workflows` → **New File** → name it exactly `destroy.yml`. 📋 Paste this, **replacing `ACCOUNT_ID_HERE`**, then save:
+**Step 7a:** In VS Code, right-click `.github/workflows` → **New File** → name it exactly `destroy.yml`. 📋 Paste this, **replacing `<YOUR_ACCOUNT_ID>`**, then save:
 
 ```yaml
 name: Destroy Infrastructure
@@ -383,7 +383,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::ACCOUNT_ID_HERE:role/github-actions-infra
+          role-to-assume: arn:aws:iam::<YOUR_ACCOUNT_ID>:role/github-actions-infra
           aws-region: us-east-1
 
       - name: Setup OpenTofu
@@ -396,7 +396,7 @@ jobs:
         run: tofu destroy -auto-approve
 ```
 
-**Replace `ACCOUNT_ID_HERE`** (1 place). Save.
+**Replace `<YOUR_ACCOUNT_ID>`** (1 place). Save.
 
 > **What makes this safe?**
 >
