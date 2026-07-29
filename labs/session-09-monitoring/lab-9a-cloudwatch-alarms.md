@@ -336,9 +336,9 @@ aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Erro
 
 **Step 6c: ✅ Console Checkpoint** — Open the AWS Console in your browser:
 1. Go to **CloudWatch** (search "CloudWatch" in the top bar)
-2. In the left menu, click **All metrics**
-3. Under "Browse", click **Lambda**
-4. Click **By Function Name**
+2. In the left menu, click **Metrics** and then **Classic metrics**
+3. Under "Browse", click or type **Lambda**
+4. Select **By Function Name**
 5. Find `workshop-api-lab9` and tick the checkbox next to **Invocations**
 
 You should see a graph with your 6 invocations as a data point. **This is what "healthy" looks like** — invocations happening, errors at zero.
@@ -604,23 +604,33 @@ aws cloudwatch delete-alarms --alarm-names workshop-lab9-errors --region us-east
 aws sns delete-topic --topic-arn arn:aws:sns:us-east-1:<YOUR_ACCOUNT_ID>:workshop-lab9-alerts --region us-east-1
 ```
 
-**Step 3:** Delete the Lambda function:
+**Step 3:** Search and unsubscribe the SNS (replace `<SUBSCRIPTION_ARN>`):
+```
+aws sns list-subscriptions --region us-east-1
+```
+You should see two if you still have your Budget Subscription on from Session 1.
+
+```
+aws sns unsubscribe --subscription-arn <SUBSCRIPTION_ARN>
+```
+
+**Step 4:** Delete the Lambda function:
 ```
 aws lambda delete-function --function-name workshop-api-lab9 --region us-east-1
 ```
 
-**Step 4:** Delete the CloudWatch Log Group (Lambda created this automatically):
+**Step 5:** Delete the CloudWatch Log Group (Lambda created this automatically):
 ```
 aws logs delete-log-group --log-group-name /aws/lambda/workshop-api-lab9 --region us-east-1
 ```
 
-**Step 5:** Remove the Lambda role:
+**Step 6:** Remove the Lambda role:
 ```
 aws iam detach-role-policy --role-name workshop-lab9-lambda-role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 aws iam delete-role --role-name workshop-lab9-lambda-role
 ```
 
-**Step 6:** Delete the project folder.
+**Step 7:** Delete the project folder.
 
 **Windows (PowerShell):**
 ```powershell
