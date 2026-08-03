@@ -37,6 +37,7 @@ Work through the labs in order (A → B → C). Each lab includes:
 | 7 | IaC Fundamentals with OpenTofu | [Lab 7A: OpenTofu Setup](session-07-iac-fundamentals/lab-7a-opentofu-setup.md) · [Lab 7B: Lambda with IaC](session-07-iac-fundamentals/lab-7b-lambda-with-iac.md) · [Lab 7C: Event-Driven Modules](session-07-iac-fundamentals/lab-7c-event-driven-modules.md) |
 | 8 | CI/CD for Infrastructure | [Lab 8A: GitHub OIDC](session-08-cicd/lab-8a-github-oidc.md) · [Lab 8B: Pipeline Plan & Apply](session-08-cicd/lab-8b-pipeline-plan-apply.md) · [Lab 8C: Drift Detection](session-08-cicd/lab-8c-drift-detection.md) |
 | 9 | Monitoring & Observability | [Lab 9A: CloudWatch Alarms](session-09-monitoring/lab-9a-cloudwatch-alarms.md) · [Lab 9B: Diagnose with Logs](session-09-monitoring/lab-9b-diagnose-with-logs.md) · [Lab 9C: CI Smoke Test](session-09-monitoring/lab-9c-ci-smoke-test.md) |
+| 10 | Chatbot Observability | [Lab 10A: Deploy Chatbot](session-10-chatbot-observability/lab-10a-deploy-chatbot.md) · [Lab 10B: Monitor Dependencies](session-10-chatbot-observability/lab-10b-monitor-dependencies.md) · [Lab 10C: Resilient Fallback](session-10-chatbot-observability/lab-10c-resilient-fallback.md) |
 
 *More sessions coming soon.*
 

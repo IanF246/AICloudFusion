@@ -30,6 +30,8 @@ A quick reference for every AWS service and concept used in the labs. Bookmark t
 | **CloudWatch Logs** | Stores text output from Lambda, EC2, and other services (log groups + streams) | Lab 9B |
 | **CloudWatch Logs Insights** | Query engine for searching and analysing logs at scale | Lab 9B |
 | **CloudWatch Dashboard** | Customizable page showing multiple metrics in a single operational view | Lab 9C |
+| **CloudWatch Metric Filter** | A rule that extracts numbers from structured logs and publishes them as custom metrics | Lab 10B |
+| **AWS Systems Manager Parameter Store** | Free service for storing configuration values that Lambda reads at runtime | Lab 10C |
 
 ---
 
@@ -88,6 +90,13 @@ A quick reference for every AWS service and concept used in the labs. Bookmark t
 | **Smoke Test** | A quick automated check after deployment that verifies the application runs without crashing | Lab 9C |
 | **Shift Left** | Catching problems earlier in the process (in CI, not in production) | Lab 9C |
 | **Defence in Depth** | Using multiple complementary safeguards (CI tests + monitoring + alarms) rather than relying on one | Lab 9C |
+| **External API Call** | When your code calls another service over the internet to get data (introduces dependency risk) | Lab 10A |
+| **Custom Metric** | A CloudWatch metric you define yourself (vs built-in AWS metrics), lives in a custom namespace | Lab 10B |
+| **Namespace** | A container for related CloudWatch metrics (e.g., `AWS/Lambda` or your own `WorkshopChatbot`) | Lab 10B |
+| **Dependency Monitoring** | Watching the health of services your application depends on, not just your own code | Lab 10B |
+| **Graceful Degradation** | System continues to function with reduced features when a component fails, rather than crashing | Lab 10C |
+| **Fallback Response** | A pre-prepared answer returned when the primary data source is unavailable | Lab 10C |
+| **Circuit Breaker Pattern** | Architecture pattern that stops calling a failing dependency and switches to fallback until it recovers | Lab 10C |
 
 ---
 
@@ -128,6 +137,12 @@ A quick reference for every AWS service and concept used in the labs. Bookmark t
 | `aws logs start-query` | Starts a CloudWatch Logs Insights query |
 | `aws logs get-query-results` | Gets results from a Logs Insights query |
 | `aws lambda update-function-code` | Updates a Lambda function's code (redeploy) |
+| `aws logs put-metric-filter` | Creates a metric filter that extracts custom metrics from log data |
+| `aws logs delete-metric-filter` | Deletes a metric filter |
+| `aws ssm put-parameter` | Creates or updates a parameter in SSM Parameter Store |
+| `aws ssm get-parameter` | Reads a parameter value from SSM Parameter Store |
+| `aws ssm delete-parameter` | Deletes a parameter from SSM Parameter Store |
+| `aws lambda create-function-url-config` | Creates a public HTTP endpoint for a Lambda function |
 | `aws sns create-topic` | Creates an SNS notification topic |
 | `aws sns subscribe` | Subscribes an email/endpoint to a topic |
 
