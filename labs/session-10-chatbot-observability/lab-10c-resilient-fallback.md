@@ -110,28 +110,32 @@ aws ssm put-parameter --name "/workshop/chatbot/mode" --type String --value "liv
 
 ### Step 3: Give the Lambda Role Permission to Read SSM
 
-📋 Copy and paste:
+**Step 3a:** Create the SSM permission policy file. Open your text editor → new file. 📋 Copy and paste:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": ["ssm:GetParameter"],
+            "Resource": "arn:aws:ssm:us-east-1:*:parameter/workshop/chatbot/*"
+        }
+    ]
+}
+```
+
+**Step 3b:** Save it as `ssm-policy.json` in your `workshop-lab-10a` folder.
+
+**Step 3c:** Attach the policy. 📋 Copy and paste (from the `workshop-lab-10a` folder, where `ssm-policy.json` is):
 
 ```
-aws iam put-role-policy --role-name workshop-lab10-lambda-role --policy-name ssm-read --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"ssm:GetParameter\"],\"Resource\":\"arn:aws:ssm:us-east-1:*:parameter/workshop/chatbot/*\"}]}"
+aws iam put-role-policy --role-name workshop-lab10-lambda-role --policy-name ssm-read --policy-document file://ssm-policy.json
 ```
 
 **✅ No output means success.**
 
-> **💡 On Mac/Linux**, the inline JSON with escaped quotes works. **On Windows**, if this fails, create a file called `ssm-policy.json` with:
-> ```json
-> {
->     "Version": "2012-10-17",
->     "Statement": [
->         {
->             "Effect": "Allow",
->             "Action": ["ssm:GetParameter"],
->             "Resource": "arn:aws:ssm:us-east-1:*:parameter/workshop/chatbot/*"
->         }
->     ]
-> }
-> ```
-> Then run: `aws iam put-role-policy --role-name workshop-lab10-lambda-role --policy-name ssm-read --policy-document file://ssm-policy.json`
+> **What does this do?** It gives your Lambda function permission to read parameters under `/workshop/chatbot/` from SSM Parameter Store. Without this, the function would get an `AccessDeniedException` when trying to check the mode.
 
 ---
 

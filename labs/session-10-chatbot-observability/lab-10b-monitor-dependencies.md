@@ -356,12 +356,12 @@ Create an alarm that fires when the external API is too slow (average latency > 
 📋 Copy and paste, **replacing `<YOUR_ACCOUNT_ID>`**:
 
 ```
-aws cloudwatch put-metric-alarm --alarm-name chatbot-api-slow --metric-name ExternalAPILatency --namespace "WorkshopChatbot" --statistic Average --period 60 --threshold 2000 --comparison-operator GreaterThanThreshold --evaluation-periods 1 --alarm-description "External API latency exceeds 2 seconds" --region us-east-1
+aws cloudwatch put-metric-alarm --alarm-name chatbot-api-slow --metric-name ExternalAPILatency --namespace "WorkshopChatbot" --statistic Maximum --period 60 --threshold 2000 --comparison-operator GreaterThanThreshold --evaluation-periods 1 --alarm-description "External API latency exceeds 2 seconds" --region us-east-1
 ```
 
 **✅ No output means success.**
 
-> **What does this alarm do?** If the average `ExternalAPILatency` exceeds 2000ms (2 seconds) in any 1-minute window, the alarm transitions to ALARM state. In production, you'd attach an SNS action to email/page the team (you did this in Lab 9A).
+> **What does this alarm do?** If the maximum `ExternalAPILatency` exceeds 2000ms (2 seconds) in any 1-minute window, the alarm transitions to ALARM state. We use `Maximum` (not Average) because even a single slow request indicates a dependency problem — averaging would hide it if most requests are fast.
 
 **Step 8a:** Verify the alarm was created. 📋 Copy and paste:
 
