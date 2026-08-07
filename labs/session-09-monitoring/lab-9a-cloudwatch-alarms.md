@@ -341,7 +341,7 @@ aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Erro
 4. Select **By Function Name**
 5. Find `workshop-api-lab9` and tick the checkbox next to **Invocations**
 
-You should see a graph with your 6 invocations as a data point. **This is what "healthy" looks like** — invocations happening, errors at zero.
+You should see a graph with your 6 invocations as a data point. **This is what "healthy" looks like** — invocations happening, errors at zero. If you don't then give it a few minutes, as metrics can sometimes lag, however you can also confirm by reviewing the logs of your lambda function.
 
 > **💡 What you're seeing:** CloudWatch automatically collects these metrics for every Lambda function. You didn't have to configure anything — AWS does it for you. The power comes from what you *do* with them (alarms, dashboards, queries).
 
