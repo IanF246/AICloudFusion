@@ -466,15 +466,15 @@ aws cloudwatch describe-alarms --alarm-names workshop-lab9-errors --region us-ea
 
 ### Step 9: ✅ Console Checkpoint — See the Full Story Visually
 
-**Step 9a:** Open the CloudWatch console → **Logs Insights** (left menu):
-1. Select log group: `/aws/lambda/workshop-api-lab9`
+**Step 9a:** Open the CloudWatch console → **Logs** → **Logs Analytics** (left menu):
+1. Select log group for your source: `/aws/lambda/workshop-api-lab9`
 2. In the query box, paste: `filter @message like /ERROR/ | stats count(*) by bin(5m)`
 3. Click **Run query**
-4. You should see a bar chart showing errors concentrated in one time window (the broken period) and zero everywhere else
+4. Switch the graph a bar chart showing errors concentrated in one time window (the broken period) and zero everywhere else
 
-**Step 9b:** Go to **Metrics** → **All metrics** → **Lambda** → **By Function Name**:
+**Step 9b:** Go to **Metrics** → **Classic metrics** → **Lambda** → **By Function Name**:
 1. Tick **Errors** for `workshop-api-lab9`
-2. Set the period to the last 1 hour
+2. Set the period to the last 1 hour and statistic to Sum
 3. You should see the spike (when the bug was deployed) and the drop back to zero (when you fixed it)
 
 > **💡 This visual is the story of your incident:** healthy → broke → diagnosed → fixed. In a real team, you'd screenshot this graph for the post-incident report.
