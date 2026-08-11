@@ -169,7 +169,7 @@ $env:Path += ";C:\OpenTofu"
 ```
 
 >[!NOTE]
->The above command will temporarily set the path for OpenTofu in your current CLI window, which means you will have to set it every time you open a new CLI. If you want to set the path >permanently then you can run the below command, however you need to open a new CLI for the affect to take place.
+>The above command will temporarily set the path for OpenTofu in your current CLI window. This means you will have to set it every time you open a new CLI. If you want to set the path permanently then you can run the below command. After you run the command you need to open a new CLI window for it to take affect.
 
 ```powershell
 [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\OpenTofu", "User")
