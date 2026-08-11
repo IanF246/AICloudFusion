@@ -288,7 +288,7 @@ git push -u origin add-versioning
 
 **Step 5e: Watch the plan run on the PR.**
 
-1. On the PR page, scroll to the **checks** section at the bottom — you'll see your workflow running
+1. On the PR page, select the **Checks** tab section near the top — you'll see your workflow running
 2. Click **Details** → watch the **terraform** job
 3. This time the **Tofu Plan** step runs (and **Tofu Apply** is skipped, because this is a PR, not a merge)
 
