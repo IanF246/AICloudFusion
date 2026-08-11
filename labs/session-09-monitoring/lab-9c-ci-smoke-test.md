@@ -214,7 +214,7 @@ New-Item -ItemType Directory -Path ".github\workflows" -Force
 mkdir -p .github/workflows
 ```
 
-**Step 3b:** Create the workflow file. In VS Code, right-click `.github/workflows` → **New File** → name it `deploy-and-test.yml`. 📋 Copy and paste, **replacing `ACCOUNT_ID_HERE` in 2 places**:
+**Step 3b:** Create the workflow file. In VS Code, right-click `.github/workflows` → **New File** → name it `deploy-and-test.yml`. 📋 Copy and paste, **replacing `<YOUR_ACCOUNT_ID>` in 2 places**:
 
 ```yaml
 name: Deploy and Smoke Test
@@ -239,7 +239,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::ACCOUNT_ID_HERE:role/github-actions-infra
+          role-to-assume: arn:aws:iam::<YOUR_ACCOUNT_ID>:role/github-actions-infra
           aws-region: us-east-1
 
       - name: Package Lambda
@@ -259,7 +259,7 @@ jobs:
           aws lambda create-function \
             --function-name workshop-api-lab9 \
             --runtime python3.12 \
-            --role arn:aws:iam::ACCOUNT_ID_HERE:role/workshop-lab9-lambda-role \
+            --role arn:aws:iam::<YOUR_ACCOUNT_ID>:role/workshop-lab9-lambda-role \
             --handler handler.lambda_handler \
             --zip-file fileb://function.zip \
             --timeout 10 \
@@ -331,7 +331,7 @@ jobs:
 
 Your `github-actions-infra` role (from Lab 8A) needs permission to deploy and invoke the Lambda function.
 
-**Step 4a:** Create the permissions file. In VS Code, right-click the project root → **New File** → `lambda-pipeline-permissions.json`. 📋 Copy and paste, **replacing `ACCOUNT_ID_HERE` in 2 places**:
+**Step 4a:** Create the permissions file. In VS Code, right-click the project root → **New File** → `lambda-pipeline-permissions.json`. 📋 Copy and paste, **replacing `<YOUR_ACCOUNT_ID>` in 2 places**:
 
 ```json
 {
@@ -347,19 +347,19 @@ Your `github-actions-infra` role (from Lab 8A) needs permission to deploy and in
                 "lambda:InvokeFunction",
                 "lambda:GetFunctionConfiguration"
             ],
-            "Resource": "arn:aws:lambda:us-east-1:ACCOUNT_ID_HERE:function:workshop-api-lab9"
+            "Resource": "arn:aws:lambda:us-east-1:<YOUR_ACCOUNT_ID>:function:workshop-api-lab9"
         },
         {
             "Sid": "PassRoleToLambda",
             "Effect": "Allow",
             "Action": "iam:PassRole",
-            "Resource": "arn:aws:iam::ACCOUNT_ID_HERE:role/workshop-lab9-lambda-role"
+            "Resource": "arn:aws:iam::<YOUR_ACCOUNT_ID>:role/workshop-lab9-lambda-role"
         }
     ]
 }
 ```
 
-**Replace `ACCOUNT_ID_HERE` in 2 places.** Save the file.
+**Replace `<YOUR_ACCOUNT_ID>` in 2 places.** Save the file.
 
 **Step 4b:** Attach the policy to the pipeline role. 📋 Copy and paste (from the `workshop-iac` folder, where `lambda-pipeline-permissions.json` is):
 
