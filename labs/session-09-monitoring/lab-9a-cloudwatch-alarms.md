@@ -375,6 +375,9 @@ aws sns subscribe --topic-arn arn:aws:sns:us-east-1:<YOUR_ACCOUNT_ID>:workshop-l
 
 > **What just happened?** You created a notification channel and proved you own the email. AWS requires this confirmation so nobody can subscribe *someone else's* email and spam them with alerts.
 
+>[!TIP]
+>You can use the command `aws sns list-subscriptions` to review active subscriptions.
+
 ---
 
 ### Step 8: Create a CloudWatch Alarm
