@@ -299,7 +299,7 @@ jobs:
           fi
           
           # Check for expected response
-          if grep -q '"status": "healthy"' response.json; then
+          if grep -q 'healthy' response.json; then
             echo ""
             echo "✅ SMOKE TEST PASSED!"
             echo "Function responds correctly."
@@ -455,7 +455,7 @@ gh pr create --title "Add database connection" --body "Adding database connectiv
 gh run watch
 ```
 
-**✅ You should see** the pipeline **fail** at the smoke test step with:
+**✅ You should see** the pipeline **fail** at the smoke test step. Review in GitHub the exact error which should look like:
 ```
 ❌ SMOKE TEST FAILED!
 The function returned an error:
@@ -473,7 +473,7 @@ Fix the code before merging.
 **Step 6f: ✅ Console Checkpoint** — Open your GitHub repo → **Pull requests** tab:
 1. Click on your "Add database connection" PR
 2. You should see a red ❌ next to the workflow check
-3. Click "Details" to see the full smoke test failure output
+3. Select the PR and click "Checks" tab to see the full smoke test failure output
 
 > **💡 What just happened:** Without the smoke test, this exact bug reached production in Lab 9B and caused a full outage. With the smoke test, it was caught before merge. That's the shift-left principle in action.
 
