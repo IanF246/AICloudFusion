@@ -168,6 +168,13 @@ Expand-Archive -Path "tofu.zip" -DestinationPath "C:\OpenTofu"
 $env:Path += ";C:\OpenTofu"
 ```
 
+>[!NOTE]
+>The above command will temporarily set the path for OpenTofu in your current CLI window, which means you will have to set it every time you open a new CLI. If you want to set the path >permanently then you can run the below command, however you need to open a new CLI for the affect to take place.
+
+```powershell
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\OpenTofu", "User")
+```
+
 > **What do these commands do?**
 > 1. Downloads the OpenTofu zip file
 > 2. Extracts it to a temp folder
