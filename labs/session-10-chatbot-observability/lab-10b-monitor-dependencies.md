@@ -343,9 +343,9 @@ aws cloudwatch put-dashboard --dashboard-name workshop-chatbot-dashboard --dashb
 - **Chatbot Invocations** — shows your 5+ invocations
 - **Lambda Errors** — should be 0 (your code isn't crashing)
 - **External API Latency (ms)** — shows the typical 300–600ms response time with a red threshold line at 2000ms
-- **External API Errors** — should be 0 (the trivia API is responding normally)
+- **External API Errors** — should be 1 or 2 (the trivia API is responding normally and has failsafe for too many requests in short time)
 
-> **💡 This is what "healthy" looks like.** All four panels are calm. Latency is well below the red line. No errors. Remember this view — you're about to break things.
+> **💡 This is what "healthy" looks like.** All four panels are calm. Latency is well below the red line. A few errors. Remember this view — you're about to break things.
 
 ---
 
@@ -353,7 +353,7 @@ aws cloudwatch put-dashboard --dashboard-name workshop-chatbot-dashboard --dashb
 
 Create an alarm that fires when the external API is too slow (average latency > 2000ms).
 
-📋 Copy and paste, **replacing `<YOUR_ACCOUNT_ID>`**:
+📋 Copy and paste:
 
 ```
 aws cloudwatch put-metric-alarm --alarm-name chatbot-api-slow --metric-name ExternalAPILatency --namespace "WorkshopChatbot" --statistic Maximum --period 60 --threshold 2000 --comparison-operator GreaterThanThreshold --evaluation-periods 1 --alarm-description "External API latency exceeds 2 seconds" --region us-east-1
@@ -534,9 +534,19 @@ aws cloudwatch describe-alarms --alarm-names chatbot-api-slow --region us-east-1
 
 > **🎯 The alarm caught the degraded dependency.** Your code didn't crash. Lambda didn't error. But the external API response time crossed your threshold, and the alarm told you. Without this monitoring, users would just experience slowness and you'd have no idea why.
 
-**Step 11b: ✅ Console Checkpoint** — Go back to your CloudWatch Dashboard:
+✅ Console Checkpoint**
+Step 11b: **Add an Average/Maximum toggle** — By default the latency panel plots the **Average**, which smooths out spikes. Add a dropdown so you can switch to **Maximum** (what the alarm evaluates) without editing the widget:
+
+On the dashboard, click **Actions → Variables → Create a variable**
+Choose **Pattern variable (advanced)**
+In the pattern box, type `Average` and select the match
+Set **Input type** to **Select menu (dropdown)** and add two values: `Average` and `Maximum`
+Under secondary settings — **Name**: `stat`, **Label**: `Statistic`, **Default**: `Average`
+Click **Create variable**, then **Save dashboard**
+Flip the new **Statistic** dropdown to `Maximum`.
+
 1. The **External API Latency** panel should now show a dramatic spike above the red 2000ms threshold line
-2. The **Chatbot Invocations** panel shows the requests still succeeded
+2. The **Chatbot Invocations** panel shows the requests still succeeded/failed respectively
 3. The **Lambda Errors** panel is still 0 — your code is fine, it's the dependency that's slow
 
 > **💡 This is the key insight of dependency monitoring:** "no errors" doesn't mean "healthy." Latency degradation is invisible without specific measurement. Your dashboard now shows the full picture.
