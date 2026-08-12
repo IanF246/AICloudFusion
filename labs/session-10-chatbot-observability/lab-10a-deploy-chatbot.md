@@ -129,7 +129,7 @@ pwd
 
 This is the chatbot code. It receives a user message, calls the Open Trivia Database API to get a trivia question, and returns the result — logging structured JSON at every step.
 
-**Step 2a:** Open your text editor and create a new file.
+**Step 2a:** Open your text editor and create a new file as `handler.py` in your `workshop-lab-10a` folder.
 
 **Step 2b:** 📋 Copy and paste this code:
 
@@ -253,7 +253,7 @@ The key insight: every log entry is a JSON object with consistent fields (`event
 
 Before Lambda can run your code, it needs an **IAM role** — permission to exist and write logs.
 
-**Step 3a:** Create the trust policy file. Open your text editor → new file. 📋 Copy and paste:
+**Step 3a:** Create the trust policy file with the name `lambda-trust.json` in your `workshop-lab-10a` folder. Open your text editor → new file. 📋 Copy and paste:
 
 ```json
 {
@@ -338,7 +338,7 @@ aws lambda create-function --function-name workshop-chatbot-lab10 --runtime pyth
 
 Now you'll call your chatbot! You'll send it a message using a payload file, and it will call the trivia API and return a question.
 
-**Step 5a:** Create the payload file. Open your text editor → new file. 📋 Copy and paste:
+**Step 5a:** Create the payload file with the name `payload.json` in your `workshop-lab-10a` folder. Open your text editor → new file. 📋 Copy and paste:
 
 ```json
 {"body": "{\"message\": \"Give me a trivia question\"}"}
@@ -443,7 +443,8 @@ aws logs get-log-events --log-group-name /aws/lambda/workshop-chatbot-lab10 --lo
 > **💡 What you're seeing:** Three structured log entries per invocation:
 > 1. `request_received` — the chatbot got a message from the user
 > 2. `api_call_success` — the external trivia API responded (with latency measured!)
-> 3. `request_completed` — the chatbot finished processing (with total time measured)
+> 3. `api_call_failed` — the external trivia API failed (likely due to too many requests)
+> 4. `request_completed` — the chatbot finished processing (with total time measured)
 >
 > Each entry shares the same `request_id`, so you can trace a single request through all its stages. This is called **request tracing** — essential for debugging in production.
 
@@ -455,7 +456,7 @@ Let's see these logs in the AWS Console for a visual view.
 
 **Step 7a:** Open the AWS Console in your browser. Go to **CloudWatch** (search "CloudWatch" in the top search bar).
 
-**Step 7b:** In the left menu, click **Logs** → **Log groups**.
+**Step 7b:** In the left menu, click **Logs** → **Log Management**.
 
 **Step 7c:** Find and click on `/aws/lambda/workshop-chatbot-lab10`.
 
@@ -466,7 +467,7 @@ Let's see these logs in the AWS Console for a visual view.
 - Lines starting with `[INFO]` followed by your structured JSON — these are YOUR log entries
 - Lines starting with `REPORT` — Lambda's summary of duration, memory used, and billed duration
 
-**✅ You should see** your structured JSON entries with fields like `"event": "request_received"`, `"event": "api_call_success"`, and `"event": "request_completed"`.
+**✅ You should see** your structured JSON entries with fields like `"event": "request_received"`, `"event": "api_call_success"`, `"event": "api_call_failed"`, and `"event": "request_completed"`.
 
 > **🎯 Why this matters:** In Lab 10B, you'll use CloudWatch Logs Insights to run queries across ALL these log entries at once — for example, "what's the average API latency across all invocations?" or "show me the slowest requests." That's only possible because the logs are structured JSON with consistent field names.
 
