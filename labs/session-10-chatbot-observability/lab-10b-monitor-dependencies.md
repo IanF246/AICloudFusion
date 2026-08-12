@@ -534,20 +534,22 @@ aws cloudwatch describe-alarms --alarm-names chatbot-api-slow --region us-east-1
 
 > **🎯 The alarm caught the degraded dependency.** Your code didn't crash. Lambda didn't error. But the external API response time crossed your threshold, and the alarm told you. Without this monitoring, users would just experience slowness and you'd have no idea why.
 
-✅ Console Checkpoint**
+**✅ Console Checkpoint**
+
 Step 11b: **Add an Average/Maximum toggle** — By default the latency panel plots the **Average**, which smooths out spikes. Add a dropdown so you can switch to **Maximum** (what the alarm evaluates) without editing the widget:
 
-On the dashboard, click **Actions → Variables → Create a variable**
-Choose **Pattern variable (advanced)**
-In the pattern box, type `Average` and select the match
-Set **Input type** to **Select menu (dropdown)** and add two values: `Average` and `Maximum`
-Under secondary settings — **Name**: `stat`, **Label**: `Statistic`, **Default**: `Average`
-Click **Create variable**, then **Save dashboard**
-Flip the new **Statistic** dropdown to `Maximum`.
+1. On the dashboard, click **Actions → Variables → Create a variable**
+2. Choose **Pattern variable (advanced)**
+3. In the pattern box, type `Average` and select the match
+4. Set **Input type** to **Select menu (dropdown)** and add two values: `Average` and `Maximum`
+5. Under secondary settings — **Name**: `stat`, **Label**: `Statistic`, **Default**: `Average`
+6. Click **Create variable**, then **Save dashboard**
+7. Flip the new **Statistic** dropdown to `Maximum`.
 
-1. The **External API Latency** panel should now show a dramatic spike above the red 2000ms threshold line
-2. The **Chatbot Invocations** panel shows the requests still succeeded/failed respectively
-3. The **Lambda Errors** panel is still 0 — your code is fine, it's the dependency that's slow
+>[!NOTE]
+>1. The **External API Latency** panel should now show a dramatic spike above the red 2000ms threshold line
+>2. The **Chatbot Invocations** panel shows the requests still succeeded/failed respectively
+>3. The **Lambda Errors** panel is still 0 — your code is fine, it's the dependency that's slow
 
 > **💡 This is the key insight of dependency monitoring:** "no errors" doesn't mean "healthy." Latency degradation is invisible without specific measurement. Your dashboard now shows the full picture.
 
