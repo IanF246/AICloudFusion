@@ -537,7 +537,7 @@ The SAA exam tests:
 aws lambda delete-function --function-name workshop-chatbot-lab10 --region us-east-1
 ```
 
-**✅ No output means success.**
+**✅ 204 output means success.**
 
 **Step 2:** Delete the CloudWatch Log Group. 📋 Copy and paste:
 
