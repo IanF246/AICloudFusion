@@ -32,6 +32,8 @@ A quick reference for every AWS service and concept used in the labs. Bookmark t
 | **CloudWatch Dashboard** | Customizable page showing multiple metrics in a single operational view | Lab 9C |
 | **CloudWatch Metric Filter** | A rule that extracts numbers from structured logs and publishes them as custom metrics | Lab 10B |
 | **AWS Systems Manager Parameter Store** | Free service for storing configuration values that Lambda reads at runtime | Lab 10C |
+| **Amazon Bedrock** | Managed AI service providing access to foundation models via API (no ML expertise needed) | Lab 11A |
+| **Amazon API Gateway** | Creates public HTTP endpoints for Lambda functions (REST APIs accessible from browsers) | Lab 11A |
 
 ---
 
@@ -97,6 +99,13 @@ A quick reference for every AWS service and concept used in the labs. Bookmark t
 | **Graceful Degradation** | System continues to function with reduced features when a component fails, rather than crashing | Lab 10C |
 | **Fallback Response** | A pre-prepared answer returned when the primary data source is unavailable | Lab 10C |
 | **Circuit Breaker Pattern** | Architecture pattern that stops calling a failing dependency and switches to fallback until it recovers | Lab 10C |
+| **Foundation Model** | A large AI model pre-trained on vast data that can answer questions, generate text, and have conversations | Lab 11A |
+| **Token** | The unit AI models use to measure text (~1 token ≈ 1 word); charged per input + output token | Lab 11A |
+| **Converse API** | Bedrock's unified API for calling any model with a standard message format | Lab 11A |
+| **System Prompt** | Invisible instructions controlling AI behaviour (personality, constraints, topic restrictions) | Lab 11B |
+| **Prompt Engineering** | The skill of crafting prompts to control AI outputs — quality, length, style, and cost | Lab 11B |
+| **Temperature** | AI parameter controlling randomness (0 = deterministic, 1 = creative) | Lab 11B |
+| **Token Budget** | A limit enforced in code to reject requests that would consume too many tokens | Lab 11C |
 
 ---
 
@@ -143,6 +152,12 @@ A quick reference for every AWS service and concept used in the labs. Bookmark t
 | `aws ssm get-parameter` | Reads a parameter value from SSM Parameter Store |
 | `aws ssm delete-parameter` | Deletes a parameter from SSM Parameter Store |
 | `aws lambda create-function-url-config` | Creates a public HTTP endpoint for a Lambda function |
+| `aws bedrock-runtime converse` | Calls a Bedrock AI model with messages and returns a generated response |
+| `aws apigateway create-rest-api` | Creates a new API Gateway REST API |
+| `aws apigateway create-resource` | Adds a path resource (e.g., /chat) to an API |
+| `aws apigateway put-method` | Adds an HTTP method (GET, POST) to an API resource |
+| `aws apigateway put-integration` | Connects an API method to a backend (Lambda) |
+| `aws apigateway create-deployment` | Deploys an API to a stage (makes it live) |
 | `aws sns create-topic` | Creates an SNS notification topic |
 | `aws sns subscribe` | Subscribes an email/endpoint to a topic |
 
