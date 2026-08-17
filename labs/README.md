@@ -38,6 +38,7 @@ Work through the labs in order (A → B → C). Each lab includes:
 | 8 | CI/CD for Infrastructure | [Lab 8A: GitHub OIDC](session-08-cicd/lab-8a-github-oidc.md) · [Lab 8B: Pipeline Plan & Apply](session-08-cicd/lab-8b-pipeline-plan-apply.md) · [Lab 8C: Drift Detection](session-08-cicd/lab-8c-drift-detection.md) |
 | 9 | Monitoring & Observability | [Lab 9A: CloudWatch Alarms](session-09-monitoring/lab-9a-cloudwatch-alarms.md) · [Lab 9B: Diagnose with Logs](session-09-monitoring/lab-9b-diagnose-with-logs.md) · [Lab 9C: CI Smoke Test](session-09-monitoring/lab-9c-ci-smoke-test.md) |
 | 10 | Chatbot Observability | [Lab 10A: Deploy Chatbot](session-10-chatbot-observability/lab-10a-deploy-chatbot.md) · [Lab 10B: Monitor Dependencies](session-10-chatbot-observability/lab-10b-monitor-dependencies.md) · [Lab 10C: Resilient Fallback](session-10-chatbot-observability/lab-10c-resilient-fallback.md) |
+| 11 | AI Engineering | [Lab 11A: Bedrock Chatbot](session-11-ai-engineering/lab-11a-bedrock-chatbot.md) · [Lab 11B: Prompt Engineering](session-11-ai-engineering/lab-11b-prompt-engineering.md) · [Lab 11C: AI Monitoring](session-11-ai-engineering/lab-11c-ai-monitoring.md) |
 
 *More sessions coming soon.*
 
