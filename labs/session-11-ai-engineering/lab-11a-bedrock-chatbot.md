@@ -715,6 +715,7 @@ The AI Practitioner exam tests:
 | `Unable to import module 'handler'` | Zip structure wrong | Delete function.zip, verify you're in the right folder, re-zip |
 | Chat UI shows but sends to wrong URL | API ID mismatch in the HTML | The HTML auto-detects the API URL from the request — this shouldn't happen. Re-deploy if it does. |
 | `Invalid base64` on CLI invoke | Missing `--cli-binary-format raw-in-base64-out` flag | Add the flag to CLI invoke commands |
+| `(ThrottlingException)` error on CLI invoke | Bedrock regional and/or model quota has been met | Try again later |
 
 ---
 
