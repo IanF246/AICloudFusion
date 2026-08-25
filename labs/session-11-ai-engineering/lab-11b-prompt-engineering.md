@@ -85,7 +85,21 @@ export AWS_PROFILE="<YOUR_PROFILE_NAME>"
 cd ~/Desktop/workshop-lab-11a
 ```
 
-**Step 1b:** Verify the chatbot still works. 📋 Copy and paste:
+**Step 1b:** Create the invoke payload file. Throughout this lab you'll test your chatbot from the CLI with `aws lambda invoke`, which needs a payload file to send. In the browser (via API Gateway), this envelope is built for you automatically; from the CLI, you supply it yourself.
+
+Open your text editor → new file. 📋 Copy and paste **exactly** (the inner quotes must stay backslash-escaped):
+
+```
+{"body": "{\"message\": \"What is S3?\"}"}
+```
+
+Save as `payload.json` in your `workshop-lab-11a` folder.
+
+> ⚠️ **Windows users:** in Notepad, change "Save as type" to **"All Files"** so it doesn't save as `payload.json.txt`.
+>
+> ⚠️ **Why the escaping?** The Lambda handler reads `event["body"]` and then runs `json.loads()` on it, so `body` must be a JSON *string*, not a nested object. That's why the inner `{...}` is wrapped in quotes with `\"` escapes. Getting this wrong is the most common cause of a `KeyError` or an empty/HTML response on invoke.
+
+**Step 1c:** Verify the chatbot still works. 📋 Copy and paste:
 
 **Windows (PowerShell):**
 ```powershell
@@ -97,7 +111,12 @@ aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 -
 aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 --cli-binary-format raw-in-base64-out --payload file://payload.json response.json && cat response.json
 ```
 
-**✅ You should see** a response with an AI-generated answer. If the function doesn't exist, go back to Lab 11A.
+**✅ You should see** a response with an AI-generated answer. If the function doesn't exist, go back to Lab 11A (Steps 3-5).
+
+> **💡 Troubleshooting Step 1c:**
+> - `Unable to load paramfile file://payload.json` → the file isn't in your current folder. Run `pwd` and confirm you're in `workshop-lab-11a`.
+> - Response looks like the HTML chat page instead of an answer → your `body` isn't a properly escaped JSON string. Re-check Step 1b.
+> - `Invalid base64` → the `--cli-binary-format raw-in-base64-out` flag is missing from your command. It's included above — don't remove it.
 
 ---
 
