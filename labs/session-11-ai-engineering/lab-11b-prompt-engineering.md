@@ -432,6 +432,7 @@ The AI Practitioner exam tests:
 **If stopping here:**
 
 ```
+aws apigateway delete-rest-api --rest-api-id $API_ID --region us-east-1
 aws lambda delete-function --function-name workshop-ai-chatbot-lab11 --region us-east-1
 aws logs delete-log-group --log-group-name /aws/lambda/workshop-ai-chatbot-lab11 --region us-east-1
 aws iam delete-role-policy --role-name workshop-lab11-lambda-role --policy-name bedrock-invoke
