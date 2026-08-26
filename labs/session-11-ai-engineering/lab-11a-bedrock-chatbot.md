@@ -124,7 +124,7 @@ pwd
 
 Before building the Lambda, let's verify Bedrock works on your account.
 
-**Step 2a:** Create a test prompt file. Open your text editor → new file. 📋 Copy and paste:
+**Step 2a:** Create a test prompt file `test-prompt.json`. Open your text editor → new file. 📋 Copy and paste:
 
 ```json
 {
@@ -162,7 +162,7 @@ aws bedrock-runtime converse --cli-input-json file://test-prompt.json --region u
 
 This Lambda does three things: serves a chat UI on GET requests, handles AI conversations on POST requests, and handles CORS preflight on OPTIONS requests.
 
-**Step 3a:** Open your text editor → new file. 📋 Copy and paste this entire code block:
+**Step 3a:** Open your text editor → new file for `handler.py`. 📋 Copy and paste this entire code block:
 
 ```python
 import json
@@ -387,7 +387,7 @@ The chat UI is embedded directly in the Lambda — no separate hosting needed. W
 
 ### Step 4: Create the Lambda Role (with Bedrock Permission)
 
-**Step 4a:** Create the trust policy. Open your text editor → new file. 📋 Copy and paste:
+**Step 4a:** Create the trust policy. Open your text editor → new file `lambda-trust.json`. 📋 Copy and paste:
 
 ```json
 {
@@ -406,7 +406,7 @@ The chat UI is embedded directly in the Lambda — no separate hosting needed. W
 
 **Step 4b:** Save as `lambda-trust.json` in your `workshop-lab-11a` folder.
 
-**Step 4c:** Create the Bedrock permission policy. Open your text editor → new file. 📋 Copy and paste:
+**Step 4c:** Create the Bedrock permission policy. Open your text editor → new file `bedrock-policy.json`. 📋 Copy and paste:
 
 ```json
 {
@@ -491,8 +491,7 @@ Right now your Lambda can only be called via the CLI. API Gateway gives it a pub
 
 **Windows (PowerShell):**
 ```powershell
-$API_ID = aws apigateway create-rest-api --name workshop-ai-chatbot --region us-east-1 --query "id" --output text
-Write-Host "API ID: $API_ID"
+$API_ID = aws apigateway create-rest-api --name workshop-ai-chatbot --region us-east-1 --query "id" --output text; Write-Host "API ID: $API_ID"
 ```
 
 **macOS / Linux:**
@@ -507,8 +506,7 @@ echo "API ID: $API_ID"
 
 **Windows (PowerShell):**
 ```powershell
-$ROOT_ID = aws apigateway get-resources --rest-api-id $API_ID --region us-east-1 --query "items[0].id" --output text
-Write-Host "Root ID: $ROOT_ID"
+$ROOT_ID = aws apigateway get-resources --rest-api-id $API_ID --region us-east-1 --query "items[0].id" --output text; Write-Host "Root ID: $ROOT_ID"
 ```
 
 **macOS / Linux:**
@@ -523,8 +521,7 @@ echo "Root ID: $ROOT_ID"
 
 **Windows (PowerShell):**
 ```powershell
-$CHAT_ID = aws apigateway create-resource --rest-api-id $API_ID --parent-id $ROOT_ID --path-part chat --region us-east-1 --query "id" --output text
-Write-Host "Chat ID: $CHAT_ID"
+$CHAT_ID = aws apigateway create-resource --rest-api-id $API_ID --parent-id $ROOT_ID --path-part chat --region us-east-1 --query "id" --output text; Write-Host "Chat ID: $CHAT_ID"
 ```
 
 **macOS / Linux:**
@@ -539,10 +536,7 @@ echo "Chat ID: $CHAT_ID"
 
 **Windows (PowerShell):**
 ```powershell
-aws apigateway put-method --rest-api-id $API_ID --resource-id $CHAT_ID --http-method GET --authorization-type NONE --region us-east-1 | Out-Null
-aws apigateway put-method --rest-api-id $API_ID --resource-id $CHAT_ID --http-method POST --authorization-type NONE --region us-east-1 | Out-Null
-aws apigateway put-method --rest-api-id $API_ID --resource-id $CHAT_ID --http-method OPTIONS --authorization-type NONE --region us-east-1 | Out-Null
-Write-Host "Methods created: GET, POST, OPTIONS"
+aws apigateway put-method --rest-api-id $API_ID --resource-id $CHAT_ID --http-method GET --authorization-type NONE --region us-east-1 | Out-Null; aws apigateway put-method --rest-api-id $API_ID --resource-id $CHAT_ID --http-method POST --authorization-type NONE --region us-east-1 | Out-Null; aws apigateway put-method --rest-api-id $API_ID --resource-id $CHAT_ID --http-method OPTIONS --authorization-type NONE --region us-east-1 | Out-Null; Write-Host "Methods created: GET, POST, OPTIONS"
 ```
 
 **macOS / Linux:**
@@ -560,10 +554,8 @@ echo "Methods created: GET, POST, OPTIONS"
 **Windows (PowerShell):**
 ```powershell
 $LAMBDA_URI = "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:<YOUR_ACCOUNT_ID>:function:workshop-ai-chatbot-lab11/invocations"
-aws apigateway put-integration --rest-api-id $API_ID --resource-id $CHAT_ID --http-method GET --type AWS_PROXY --integration-http-method POST --uri $LAMBDA_URI --region us-east-1 | Out-Null
-aws apigateway put-integration --rest-api-id $API_ID --resource-id $CHAT_ID --http-method POST --type AWS_PROXY --integration-http-method POST --uri $LAMBDA_URI --region us-east-1 | Out-Null
-aws apigateway put-integration --rest-api-id $API_ID --resource-id $CHAT_ID --http-method OPTIONS --type AWS_PROXY --integration-http-method POST --uri $LAMBDA_URI --region us-east-1 | Out-Null
-Write-Host "Integrations connected"
+
+aws apigateway put-integration --rest-api-id $API_ID --resource-id $CHAT_ID --http-method GET --type AWS_PROXY --integration-http-method POST --uri $LAMBDA_URI --region us-east-1 | Out-Null; aws apigateway put-integration --rest-api-id $API_ID --resource-id $CHAT_ID --http-method POST --type AWS_PROXY --integration-http-method POST --uri $LAMBDA_URI --region us-east-1 | Out-Null; aws apigateway put-integration --rest-api-id $API_ID --resource-id $CHAT_ID --http-method OPTIONS --type AWS_PROXY --integration-http-method POST --uri $LAMBDA_URI --region us-east-1 | Out-Null; Write-Host "Integrations connected"
 ```
 
 **macOS / Linux:**
@@ -583,8 +575,7 @@ echo "Integrations connected"
 
 **Windows (PowerShell):**
 ```powershell
-aws lambda add-permission --function-name workshop-ai-chatbot-lab11 --statement-id apigateway-invoke --action lambda:InvokeFunction --principal apigateway.amazonaws.com --source-arn "arn:aws:execute-api:us-east-1:<YOUR_ACCOUNT_ID>:$API_ID/*" --region us-east-1 | Out-Null
-Write-Host "Lambda permission added"
+aws lambda add-permission --function-name workshop-ai-chatbot-lab11 --statement-id apigateway-invoke --action lambda:InvokeFunction --principal apigateway.amazonaws.com --source-arn "arn:aws:execute-api:us-east-1:<YOUR_ACCOUNT_ID>:$API_ID/*" --region us-east-1 | Out-Null; Write-Host "Lambda permission added"
 ```
 
 **macOS / Linux:**
@@ -602,8 +593,7 @@ echo "Lambda permission added"
 **Windows (PowerShell):**
 ```powershell
 aws apigateway create-deployment --rest-api-id $API_ID --stage-name live --region us-east-1 | Out-Null
-Write-Host "Deployed! Your chatbot URL is:"
-Write-Host "https://$API_ID.execute-api.us-east-1.amazonaws.com/live/chat"
+Write-Host "Deployed! Your chatbot URL is:"; Write-Host "https://$API_ID.execute-api.us-east-1.amazonaws.com/live/chat"
 ```
 
 **macOS / Linux:**
