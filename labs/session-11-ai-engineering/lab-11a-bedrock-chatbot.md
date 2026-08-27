@@ -554,8 +554,12 @@ echo "Methods created: GET, POST, OPTIONS"
 **Windows (PowerShell):**
 ```powershell
 $LAMBDA_URI = "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:<YOUR_ACCOUNT_ID>:function:workshop-ai-chatbot-lab11/invocations"
-
-aws apigateway put-integration --rest-api-id $API_ID --resource-id $CHAT_ID --http-method GET --type AWS_PROXY --integration-http-method POST --uri $LAMBDA_URI --region us-east-1 | Out-Null; aws apigateway put-integration --rest-api-id $API_ID --resource-id $CHAT_ID --http-method POST --type AWS_PROXY --integration-http-method POST --uri $LAMBDA_URI --region us-east-1 | Out-Null; aws apigateway put-integration --rest-api-id $API_ID --resource-id $CHAT_ID --http-method OPTIONS --type AWS_PROXY --integration-http-method POST --uri $LAMBDA_URI --region us-east-1 | Out-Null; Write-Host "Integrations connected"
+```
+```
+aws apigateway put-integration --rest-api-id $API_ID --resource-id $CHAT_ID --http-method GET --type AWS_PROXY --integration-http-method POST --uri $LAMBDA_URI --region us-east-1 | Out-Null
+aws apigateway put-integration --rest-api-id $API_ID --resource-id $CHAT_ID --http-method POST --type AWS_PROXY --integration-http-method POST --uri $LAMBDA_URI --region us-east-1 | Out-Null
+aws apigateway put-integration --rest-api-id $API_ID --resource-id $CHAT_ID --http-method OPTIONS --type AWS_PROXY --integration-http-method POST --uri $LAMBDA_URI --region us-east-1 | Out-Null
+Write-Host "Integrations connected"
 ```
 
 **macOS / Linux:**
@@ -640,7 +644,7 @@ https://<API_ID>.execute-api.us-east-1.amazonaws.com/live/chat
 
 > **💡 Share this URL with a friend!** Anyone with the link can chat with your AI bot. This is a real, live, serverless AI application running on AWS — and you built it.
 
-> **⚠️ Remember:** Every message costs a tiny amount (~$0.00002 per request). The URL will keep working until you delete the resources in Cleanup. Don't leave it running indefinitely if you're worried about cost — but 100 messages would cost less than $0.01.
+>[!CAUTION] **⚠️ Remember:** Every message costs a tiny amount (~$0.00002 per request). The URL will keep working until you delete the resources in Cleanup. Don't leave it running >indefinitely if you're worried about cost — but 100 messages would cost less than $0.01.
 
 ---
 
