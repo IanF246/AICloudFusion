@@ -644,7 +644,8 @@ https://<API_ID>.execute-api.us-east-1.amazonaws.com/live/chat
 
 > **💡 Share this URL with a friend!** Anyone with the link can chat with your AI bot. This is a real, live, serverless AI application running on AWS — and you built it.
 
->[!CAUTION] **⚠️ Remember:** Every message costs a tiny amount (~$0.00002 per request). The URL will keep working until you delete the resources in Cleanup. Don't leave it running >indefinitely if you're worried about cost — but 100 messages would cost less than $0.01.
+>[!CAUTION]
+>**⚠️ Remember:** Every message costs a tiny amount (~$0.00002 per request). The URL will keep working until you delete the resources in Cleanup. Don't leave it running >indefinitely if you're worried about cost — but 100 messages would cost less than $0.01.
 
 ---
 
