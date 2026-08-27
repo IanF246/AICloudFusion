@@ -112,6 +112,7 @@ aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 -
 ```
 
 **✅ You should see** a response with an AI-generated answer. If the function doesn't exist, go back to Lab 11A (Steps 3-5).
+You will also a response.json file created in your workshop folder that captures the response given by the invocation above.
 
 > **💡 Troubleshooting Step 1c:**
 > - `Unable to load paramfile file://payload.json` → the file isn't in your current folder. Run `pwd` and confirm you're in `workshop-lab-11a`.
@@ -222,6 +223,9 @@ Save and invoke again.
 
 **✅ You should see** the bot politely redirect to cloud topics (because the system prompt said "if unrelated to cloud, redirect").
 
+>[!NOTE]
+>Each time you invoke the new prompt, your response.json will automatically override to capture the new response.
+
 > **🎯 The system prompt changed the bot's behaviour without changing any code logic.** It's still the same function, the same model — but the prompt controls what the AI does. This is prompt engineering.
 
 **Step 3c:** Test the guardrails and capabilities. Try these specific prompts to verify the system prompt is working:
@@ -288,7 +292,7 @@ Re-deploy and invoke with:
 
 ### Step 5: Implement Conversation History (Multi-Turn Chat)
 
-Right now, each invocation is independent — the AI doesn't remember previous messages. Let's add conversation history so you can have a real back-and-forth.
+Right now, each invocation is independent — the AI doesn't remember previous messages. In this step you'll add conversation history so the bot can use earlier turns as context. To *prove* it works, you'll ask the bot something it can only answer if it remembers: your name.
 
 **Step 5a:** Change your system prompt back to the tutor version:
 
@@ -296,85 +300,130 @@ Right now, each invocation is independent — the AI doesn't remember previous m
 You are a friendly AWS cloud tutor for beginners. Explain concepts in simple language with real-world analogies. Keep responses under 3 sentences.
 ```
 
-**Step 5b:** Edit `payload.json` to include a conversation history:
-
-```json
-{"body": "{\"message\": \"What about storage?\", \"history\": [{\"role\": \"user\", \"content\": \"What are the main AWS compute services?\"}, {\"role\": \"assistant\", \"content\": \"The main AWS compute services are EC2 (virtual servers), Lambda (serverless functions), and ECS/EKS (containers). Think of EC2 as renting an apartment, Lambda as hiring a task worker, and containers as food trucks.\"}]}"}
-```
-
-**Step 5c:** Update `handler.py` to use conversation history. Find the `bedrock.converse()` call and update the `messages` section:
-
-Replace:
-```python
-            messages=[
-                {
-                    "role": "user",
-                    "content": [{"text": user_message}]
-                }
-            ],
-```
-
-With:
-```python
-            messages=build_messages(body, user_message),
-```
-
-And add this function ABOVE `lambda_handler`:
+**Step 5b:** Update `handler.py` to use conversation history. Add this function ABOVE `lambda_handler`:
 
 ```python
 def build_messages(body, current_message):
     """Build message list with optional conversation history."""
     messages = []
-    
-    # Add history if provided
-    history = body.get("history", [])
-    for msg in history:
+
+    # Add prior turns if the caller sent any
+    for msg in body.get("history", []):
         messages.append({
             "role": msg["role"],
             "content": [{"text": msg["content"]}]
         })
-    
-    # Add current message
+
+    # Add the current message
     messages.append({
         "role": "user",
         "content": [{"text": current_message}]
     })
-    
+
     return messages
 ```
 
-**Step 5d:** Save, re-deploy (zip + update-function-code), and invoke.
+Then find the `bedrock.converse()` call and replace the `messages=[...]` block:
 
-**✅ You should see** the AI answer about AWS storage, knowing from the history that you were previously asking about compute services. It has **context** — it knows this is a follow-up question.
+Replace:
 
-> **💡 Conversation history = more tokens = higher cost.** Every previous message is sent again with each request. This is why production chatbots limit history length (e.g., last 10 messages only). Longer conversations burn more input tokens.
-
----
-
-### Step 6: Compare Token Usage Across Strategies
-
-Let's see the cost impact of different prompt approaches.
-
-**Step 6a:** Reset `payload.json` to a simple message (no history):
-
-```json
-{"body": "{\"message\": \"What is S3?\"}"}
+```python
+messages=[
+    {
+        "role": "user",
+        "content": [{"text": user_message}]
+    }
+],
 ```
 
-Invoke and note the `total_tokens` in the response.
+With:
 
-**Step 6b:** Now invoke with conversation history (the payload from Step 5b). Note the `total_tokens`.
+```python
+messages=build_messages(body, user_message),
+```
 
-**✅ You should see** significantly more tokens used with history — because ALL the previous messages are re-sent as input tokens.
+**Step 5c:** Save and re-deploy (zip + update-function-code, same commands as Step 2c).
+
+**Step 5d: Test WITHOUT history — prove the bot is stateless.** Edit `payload.json`:
+
+```
+{"body": "{\"message\": \"What is my name?\"}"}
+```
+
+Save and invoke, writing to its own output file so it isn't overwritten later:
+
+**Windows (PowerShell):**
+
+```
+aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 --cli-binary-format raw-in-base64-out --payload file://payload.json response-nohistory.json; Get-Content response-nohistory.json
+```
+
+**macOS / Linux:**
+
+```
+aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 --cli-binary-format raw-in-base64-out --payload file://payload.json response-nohistory.json && cat response-nohistory.json
+```
+
+**✅ You should see** the bot fail to answer — it says it doesn't know your name, or gives a generic reply. It never saw your name, so it can't know it. Note the low input-token count.
+
+**Step 5e: Test WITH history — prove memory works.** Edit `payload.json` to ask the same question, but this time include the earlier turns in a `history` array:
+
+```
+{"body": "{\"message\": \"What is my name?\", \"history\": [{\"role\": \"user\", \"content\": \"Hi, my name is <NAME>.\"}, {\"role\": \"assistant\", \"content\": \"Hello <NAME>! Nice to meet you. How can I help you with AWS today?\"}]}"}
+```
+
+Save and invoke, writing to a **different** output file:
+
+**Windows (PowerShell):**
+
+```
+aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 --cli-binary-format raw-in-base64-out --payload file://payload.json response-history.json; Get-Content response-history.json
+```
+
+**macOS / Linux:**
+
+```
+aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 --cli-binary-format raw-in-base64-out --payload file://payload.json response-history.json && cat response-history.json
+```
+
+**✅ You should see** the bot answer **"Your name is <NAME>."** Same code, same model — the only thing that changed is the `history` array.
+
+**Step 5f:** Compare the two responses side by side (both are saved, so nothing was lost):
+
+**Windows (PowerShell):**
+
+```
+Write-Host "--- No history ---"; Get-Content response-nohistory.json; Write-Host "`n--- With history ---"; Get-Content response-history.json
+```
+
+**macOS / Linux:**
+
+```
+echo "--- No history ---"; cat response-nohistory.json; echo "\n--- With history ---"; cat response-history.json
+```
+
+**✅ You should see** two clearly different answers to the *same question* — proof that the history array is what gave the bot context. The with-history response also used more input tokens, because the whole prior conversation was re-sent.
+
+> **🤔 Wait — am I faking the conversation?** Kind of, yes — and that's the point worth understanding. You're hand-writing the `history` array yourself, including the assistant's reply, before invoking. It feels fabricated because *you are literally coding the memory by hand.* The Lambda is **stateless**: it forgets everything the instant it returns, so it has no idea what was said before unless you tell it. Here, *you* are the memory — manually feeding prior turns back in so the model has context.
+>
+> In a real application you'd never do this by hand. The conversation would be stored in a **database** (e.g. DynamoDB) keyed by a session or user ID: every user prompt and AI response is saved as it happens, and on the next request the app automatically loads that history and includes it — no copy-pasting, no writing the assistant's lines yourself. The mechanism is identical to what you're doing manually here (prior turns get re-sent with each request); the database just does the remembering for you and makes it persist across sessions.
+>
+> So the takeaway isn't "chatbots fake their memory" — it's that **memory always lives outside the model**, in whatever the caller sends. Doing it by hand here exposes the plumbing a database would normally hide.
+
+> **💡 Conversation history = more tokens = higher cost.** Every previous message is sent again with each request. This is why production chatbots limit history length (e.g. last 10 messages only). Longer conversations burn more input tokens.
+
+
+Here is roughly what that scales to:
 
 > **🎯 Token economics summary:**
-> | Approach | Typical Input Tokens | Why |
-> |----------|---------------------|-----|
-> | No system prompt, short question | 5–15 | Just the user's message |
-> | With system prompt | 30–60 | System prompt + user message |
-> | With history (3 turns) | 100–200+ | System prompt + all previous messages + new message |
 >
-> **The lesson:** System prompts and history add up. In production, you'd set a budget: "max 500 input tokens per request" and trim history to stay within it.
+> | Approach                         | Typical Input Tokens | Why                                                 |
+> | -------------------------------- | -------------------- | --------------------------------------------------- |
+> | No system prompt, short question | 5–15                 | Just the user's message                             |
+> | With system prompt               | 30–60                | System prompt + user message                        |
+> | With history (3 turns)           | 100–200+             | System prompt + all previous messages + new message |
+
+> **The lesson:** the system prompt is re-sent on every request, and so is every turn of history. Memory isn't free — each remembered turn is input tokens you pay for again on the next call. In production you'd set a budget (e.g. "max 500 input tokens per request") and trim history to stay within it, which is why real chatbots only keep the last N messages.
 
 ---
 
