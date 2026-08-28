@@ -149,6 +149,16 @@ aws lambda update-function-code --function-name workshop-ai-chatbot-lab11 --zip-
 
 Invoke — **✅ should work normally** (short prompt passes validation).
 
+**Windows (PowerShell):**
+```powershell
+aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 --cli-binary-format raw-in-base64-out --payload file://payload.json response.json; Get-Content response.json
+```
+
+**macOS / Linux:**
+```bash
+aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 --cli-binary-format raw-in-base64-out --payload file://payload.json response.json && cat response.json
+```
+
 **Step 3b:** Test with a long message. Edit `payload.json` to include a very long prompt (copy this entire block):
 
 ```json
