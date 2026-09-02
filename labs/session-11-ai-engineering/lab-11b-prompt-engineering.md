@@ -366,7 +366,7 @@ aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 -
 
 **✅ You should see** the bot fail to answer — it says it doesn't know your name, or gives a generic reply. It never saw your name, so it can't know it. Note the low input-token count.
 
-**Step 5e: Test WITH history — prove memory works.** Edit `payload.json` to ask the same question, but this time include the earlier turns in a `history` array:
+**Step 5e: Test WITH history — prove memory works.** Edit `payload.json` to ask the same question, but this time include the earlier turns in a `history` array. Replace the `<NAME>` placeholder in two areas:
 
 ```
 {"body": "{\"message\": \"What is my name?\", \"history\": [{\"role\": \"user\", \"content\": \"Hi, my name is <NAME>.\"}, {\"role\": \"assistant\", \"content\": \"Hello <NAME>! Nice to meet you. How can I help you with AWS today?\"}]}"}
