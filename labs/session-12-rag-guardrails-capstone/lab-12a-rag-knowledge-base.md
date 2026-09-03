@@ -1,10 +1,10 @@
 # Lab 12A: Give Your Chatbot a Brain — Retrieval-Augmented Generation (RAG)
 
-**Session:** 12 — AI Engineering (Capstone)
-**Track:** AI Engineering
-**Difficulty:** Beginner → Intermediate
-**Estimated Time:** 45–55 minutes
-**Target Cert:** AWS Certified AI Practitioner
+**Session:** 12 — AI Engineering (Capstone)    
+**Track:** AI Engineering    
+**Difficulty:** Beginner → Intermediate    
+**Estimated Time:** 45–55 minutes    
+**Target Cert:** AWS Certified AI Practitioner    
 
 ---
 
