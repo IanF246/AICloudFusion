@@ -321,6 +321,12 @@ aws lambda update-function-configuration --function-name workshop-ai-chatbot-lab
 
 Try each of these — edit `payload.json`, save, and invoke with your usual command:
 
+**Step 6a — Normal AWS question (should pass):**
+```json
+{"body": "{\"message\": \"What is Amazon S3?\"}"}
+```
+**✅ Expected:** a normal, grounded answer. The guardrail lets safe traffic through.
+
 **Windows (PowerShell):**
 ```powershell
 aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 --cli-binary-format raw-in-base64-out --payload file://payload.json response.json; Get-Content response.json
@@ -330,12 +336,6 @@ aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 -
 ```bash
 aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 --cli-binary-format raw-in-base64-out --payload file://payload.json response.json && cat response.json
 ```
-
-**Step 6a — Normal AWS question (should pass):**
-```json
-{"body": "{\"message\": \"What is Amazon S3?\"}"}
-```
-**✅ Expected:** a normal, grounded answer. The guardrail lets safe traffic through.
 
 **Step 6b — Denied topic (should be blocked):**
 ```json
