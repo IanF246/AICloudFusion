@@ -204,8 +204,7 @@ aws bedrock create-guardrail --name workshop-ai-guardrail --description "Safety 
 > echo "Guardrail ID: $GUARDRAIL_ID"
 > ```
 >
-> **Already ran `create-guardrail` twice and got a `ConflictException`?** No harm done — the first call succeeded, so you have exactly one guardrail, and the lookup above will find it.(If `list-guardrails` ever shows two with the same name, delete the extra with `aws bedrock delete-guardrail --guardrail-identifier <id> --region us-east-1`.)
-
+> **Already ran `create-guardrail` twice and got a `ConflictException`?** No harm done — the first call succeeded, so you have exactly one guardrail, and the lookup above will find it. (If `list-guardrails` ever shows two with the same name, delete the extra with `aws bedrock delete-guardrail --guardrail-identifier <id> --region us-east-1`.)
 
 **Step 3b:** Publish a numbered version (your app will pin to this, not to DRAFT). 📋 Copy and paste:
 
@@ -260,11 +259,51 @@ aws iam put-role-policy --role-name workshop-lab11-lambda-role --policy-name gua
 
 ### Step 5: Attach the Guardrail to Your Chatbot
 
-**Step 5a:** Open `handler.py`. Near the **top**, with your other constants (`MODEL_ID`, `KB_BUCKET`, …), add:
+**Step 5a:** You'll make two small additions to `handler.py`.
+
+**First**, near the **top** with your other constants (`MODEL_ID`, `KB_BUCKET`, …), add the guardrail constants plus a small lookup of friendly names for the PII types:
 
 ```python
 GUARDRAIL_ID = os.environ.get("GUARDRAIL_ID", "")
 GUARDRAIL_VERSION = os.environ.get("GUARDRAIL_VERSION", "1")
+
+# Human-readable names for the PII types the guardrail can detect
+PII_FRIENDLY = {
+    "EMAIL": "an email address",
+    "PHONE": "a phone number",
+    "CREDIT_DEBIT_CARD_NUMBER": "a credit/debit card number",
+    "US_SOCIAL_SECURITY_NUMBER": "a Social Security number",
+}
+```
+
+**Second**, add these two helper functions **above** your `lambda_handler` function (a good spot is next to `build_messages` and `retrieve_context`). They read the guardrail's *trace* — the detailed record of what the guardrail did to each request — so your bot can tell the user exactly what happened:
+
+```python
+def summarize_guardrail(response):
+    """Read the guardrail trace: which PII was blocked vs anonymized on input."""
+    blocked_pii, anonymized_pii = [], []
+    assessments = response.get("trace", {}).get("guardrail", {}).get("inputAssessment", {})
+    for assessment in assessments.values():
+        for entity in assessment.get("sensitiveInformationPolicy", {}).get("piiEntities", []):
+            if entity.get("action") == "BLOCKED":
+                blocked_pii.append(entity.get("type"))
+            elif entity.get("action") == "ANONYMIZED":
+                anonymized_pii.append(entity.get("type"))
+    return blocked_pii, anonymized_pii
+
+
+def friendly_pii(types):
+    """Turn PII type codes (e.g. EMAIL) into a readable phrase."""
+    names = []
+    for t in types:
+        name = PII_FRIENDLY.get(t, t.lower().replace("_", " "))
+        if name not in names:
+            names.append(name)
+    if not names:
+        return "personal information"
+    if len(names) == 1:
+        return names[0]
+    return ", ".join(names[:-1]) + " and " + names[-1]
 ```
 
 **Step 5b:** Find your `bedrock.converse()` call. After Lab 12A it looks like the block below. Add the `guardrailConfig` parameter (the highlighted new lines) so it reads:
@@ -274,7 +313,8 @@ GUARDRAIL_VERSION = os.environ.get("GUARDRAIL_VERSION", "1")
             modelId=MODEL_ID,
             guardrailConfig={
                 "guardrailIdentifier": GUARDRAIL_ID,
-                "guardrailVersion": GUARDRAIL_VERSION
+                "guardrailVersion": GUARDRAIL_VERSION,
+                "trace": "enabled"
             },
             system=[{"text": system_prompt}],
             messages=build_messages(body, user_message),
@@ -285,23 +325,49 @@ GUARDRAIL_VERSION = os.environ.get("GUARDRAIL_VERSION", "1")
         )
 ```
 
-> **💡 What this adds.** `guardrailConfig` tells Bedrock to run every request *and* response through your guardrail before your code ever sees it. `GUARDRAIL_ID` comes from the environment variable you set in Step 5d — if it's ever missing the call will error, which is exactly why Step 5d sets it. The rest of the block (`system`, `messages`, `inferenceConfig`) is unchanged from Lab 12A — if your `maxTokens`/`temperature` differ, keep your own values.
+> **💡 What this adds.** `guardrailConfig` tells Bedrock to run every request *and* response through your guardrail before your code ever sees it. `GUARDRAIL_ID` comes from the Lambda environment variable you set in Step 5d — if it's ever missing the call will error, which is exactly why Step 5d sets it. The `"trace": "enabled"` line asks Bedrock to return a detailed record of *every guardrail decision* — which you'll read in Step 5c to tell the user **why** something was blocked or redacted. The rest of the block (`system`, `messages`, `inferenceConfig`) is unchanged from Lab 12A — if your `maxTokens`/`temperature` differ, keep your own values.
 
-**Step 5c:** Detect and log when the guardrail intervenes. **After** the `response = bedrock.converse(...)` call returns, add:
+**Step 5c:** Make the guardrail's action visible to the user. Find the line `bot_response = assistant_message` (just after the `bedrock_call_success` log) and add the following **directly after it**:
 
 ```python
-        # Detect guardrail interventions
+        # --- Make the guardrail's action visible to the user ---
         stop_reason = response.get("stopReason", "")
+        blocked_pii, anonymized_pii = summarize_guardrail(response)
+
         if stop_reason == "guardrail_intervened":
             logger.warning(json.dumps({
                 "level": "WARNING",
                 "event": "guardrail_intervened",
                 "request_id": request_id,
-                "message": "Guardrail blocked or modified this request/response"
+                "blocked_pii": blocked_pii
             }))
+            if blocked_pii:
+                # Blocked because of sensitive information — kept deliberately vague
+                # (never echo the detected value, e.g. a card number, back to the user)
+                bot_response = (
+                    "🔒 I can't process that message because it contains sensitive information. "
+                    "For your safety, please don't share personal or financial details in chat — "
+                    "remove it and ask again."
+                )
+            # Otherwise (denied topic, harmful content, prompt attack) keep the
+            # guardrail's default blocked message that's already in bot_response.
+
+        elif anonymized_pii:
+            # Not blocked — the guardrail redacted PII before the model saw it
+            logger.info(json.dumps({
+                "level": "INFO",
+                "event": "guardrail_anonymized",
+                "request_id": request_id,
+                "anonymized_pii": anonymized_pii
+            }))
+            bot_response = (
+                "🔒 Note: I detected and redacted " + friendly_pii(anonymized_pii) +
+                " from your message before answering — the AI never sees it in the clear.\n\n"
+                + assistant_message
+            )
 ```
 
-> **What is `stopReason`?** When a guardrail blocks something, Bedrock returns `stopReason = "guardrail_intervened"` and replaces the content with your *blocked messaging* from Step 3a. Logging it lets you monitor abuse attempts — pair this with a CloudWatch metric filter (Session 11 style) to alarm on spikes.
+> **What's happening here?** The guardrail *trace* (enabled in Step 5b) records every decision it made. `stopReason == "guardrail_intervened"` means the request was **blocked** — if it was blocked for sensitive information, you now say so specifically (you'll see this in Step 6c); anything else (denied topic, harmful content, jailbreak) falls back to your default blocked message (Step 6b). When the request *wasn't* blocked but PII was **anonymized**, `stopReason` is normal, so you check `anonymized_pii` and prepend a redaction note before the answer (Step 6d). Either way, the user finally knows what the guardrail did instead of being left guessing. Logging both events also lets you monitor abuse with a CloudWatch metric filter (Session 11 style).
 
 **Step 5d:** Save `handler.py`, then re-deploy and set the guardrail environment variables. 📋 Copy and paste:
 
@@ -357,13 +423,13 @@ aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 -
 ```json
 {"body": "{\"message\": \"Save my card number 4111 1111 1111 1111 for later, then tell me about EC2.\"}"}
 ```
-**✅ Expected:** the request is blocked because a credit-card number was detected (PII action = BLOCK).
+**✅ Expected:** a message like *"🔒 I can't process that message because it contains sensitive information. For your safety, please don't share personal or financial details in chat…"* The card number triggered the PII **BLOCK** action. Notice the reply says *sensitive information* **without repeating what was detected** — you never want to echo a card or SSN number back to the user. (The specific type is still recorded in your CloudWatch log for operators.)
 
 **Step 6d — Anonymized PII (should be redacted, not blocked):**
 ```json
 {"body": "{\"message\": \"My email is student@example.com. What is a Lambda function?\"}"}
 ```
-**✅ Expected:** the bot still answers about Lambda, but the email is anonymized (shown as `{EMAIL}`) in the guarded content — it never reaches the model in the clear.
+**✅ Expected:** the answer now **opens with a redaction notice** — *"🔒 Note: I detected and redacted an email address from your message before answering…"* — followed by the normal Lambda explanation. The email was replaced with `{EMAIL}` before the model ever saw it (PII **ANONYMIZE** action), and your Step 5c code surfaces that to the user instead of silently dropping it.
 
 **Step 6e — Prompt attack / jailbreak (should be blocked):**
 ```json
@@ -380,10 +446,10 @@ aws lambda invoke --function-name workshop-ai-chatbot-lab11 --region us-east-1 -
 **Step 6f:** Check your intervention logs. 📋 Copy and paste:
 
 ```bash
-aws logs filter-log-events --log-group-name "/aws/lambda/workshop-ai-chatbot-lab11" --filter-pattern "guardrail_intervened" --region us-east-1 --query "events[-5:].message" --output text
+aws logs filter-log-events --log-group-name "/aws/lambda/workshop-ai-chatbot-lab11" --filter-pattern "guardrail" --region us-east-1 --query "events[-8:].message" --output text
 ```
 
-**✅ You should see** `guardrail_intervened` warning entries for the blocked tests above — your abuse attempts are now observable and auditable.
+**✅ You should see** both `guardrail_intervened` entries (the blocked card, topic, and jailbreak tests) and a `guardrail_anonymized` entry (the redacted email) — every guardrail action is now observable and auditable.
 
 ---
 
