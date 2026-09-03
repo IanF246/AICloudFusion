@@ -1,10 +1,10 @@
 # Lab 12B: Responsible AI — Bedrock Guardrails
 
-**Session:** 12 — AI Engineering (Capstone)
-**Track:** AI Engineering
-**Difficulty:** Intermediate
-**Estimated Time:** 45–55 minutes
-**Target Cert:** AWS Certified AI Practitioner
+**Session:** 12 — AI Engineering (Capstone)    
+**Track:** AI Engineering    
+**Difficulty:** Intermediate    
+**Estimated Time:** 45–55 minutes    
+**Target Cert:** AWS Certified AI Practitioner    
 
 ---
 
