@@ -193,12 +193,10 @@ aws bedrock create-guardrail --name workshop-ai-guardrail --description "Safety 
 > **💡 Save it to a variable to make the next steps easier:**
 >
 > **Windows (PowerShell):**
-> ```powershell
-> $GUARDRAIL_ID = aws bedrock create-guardrail --name workshop-ai-guardrail --description "Safety guardrail for the AI Cloud Fusion chatbot" --blocked-input-messaging "I can't help with that request. Let's keep our conversation to AWS cloud topics." --blocked-outputs-messaging "I can't provide that response. Let's keep our conversation to AWS cloud topics." --content-policy-config file://content-policy.json --topic-policy-config file://topic-policy.json --sensitive-information-policy-config file://pii-policy.json --word-policy-config file://word-policy.json --region us-east-1 --query guardrailId --output text
-> Write-Host "Guardrail ID: $GUARDRAIL_ID"
-> ```
-> *(Only run this variable version if you did **not** already run the command above — running create twice makes two guardrails. If you already created one, just set `$GUARDRAIL_ID = "<the id you copied>"`.)*
-
+ ```powershell
+$GUARDRAIL_ID = aws bedrock list-guardrails --region us-east-1 --query "guardrails[?name=='workshop-ai-guardrail'].id | [0]" --output text
+Write-Host "Guardrail ID: $GUARDRAIL_ID"
+ ```
 **Step 3b:** Publish a numbered version (your app will pin to this, not to DRAFT). 📋 Copy and paste:
 
 **Windows (PowerShell):**
