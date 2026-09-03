@@ -1,10 +1,10 @@
 # Lab 12C: Capstone — Ship It. Cost Governance & the Full AI Stack
 
-**Session:** 12 — AI Engineering (Capstone)
-**Track:** AI Engineering
-**Difficulty:** Advanced
-**Estimated Time:** 50–60 minutes
-**Target Cert:** AWS Certified AI Practitioner
+**Session:** 12 — AI Engineering (Capstone)  
+**Track:** AI Engineering  
+**Difficulty:** Advanced  
+**Estimated Time:** 50–60 minutes  
+**Target Cert:** AWS Certified AI Practitioner  
 
 ---
 
