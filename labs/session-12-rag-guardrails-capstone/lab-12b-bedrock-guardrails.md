@@ -190,13 +190,23 @@ aws bedrock create-guardrail --name workshop-ai-guardrail --description "Safety 
 
 **📝 Copy the `guardrailId` value now** — you'll need it in the next steps as `<YOUR_GUARDRAIL_ID>`.
 
-> **💡 Save it to a variable to make the next steps easier:**
+> **💡 Store the ID in a variable to make the next steps easier.** Don't re-run `create-guardrail` to capture it — that would try to make a *second* guardrail and fail with a `ConflictException`. Instead, **look it up by name**, which is safe to run any number of times:
 >
 > **Windows (PowerShell):**
- ```powershell
-$GUARDRAIL_ID = aws bedrock list-guardrails --region us-east-1 --query "guardrails[?name=='workshop-ai-guardrail'].id | [0]" --output text
-Write-Host "Guardrail ID: $GUARDRAIL_ID"
- ```
+> ```powershell
+> $GUARDRAIL_ID = aws bedrock list-guardrails --region us-east-1 --query "guardrails[?name=='workshop-ai-guardrail'].id | [0]" --output text
+> Write-Host "Guardrail ID: $GUARDRAIL_ID"
+> ```
+>
+> **macOS / Linux:**
+> ```bash
+> GUARDRAIL_ID=$(aws bedrock list-guardrails --region us-east-1 --query "guardrails[?name=='workshop-ai-guardrail'].id | [0]" --output text)
+> echo "Guardrail ID: $GUARDRAIL_ID"
+> ```
+>
+> **Already ran `create-guardrail` twice and got a `ConflictException`?** No harm done — the first call succeeded, so you have exactly one guardrail, and the lookup above will find it.(If `list-guardrails` ever shows two with the same name, delete the extra with `aws bedrock delete-guardrail --guardrail-identifier <id> --region us-east-1`.)
+
+
 **Step 3b:** Publish a numbered version (your app will pin to this, not to DRAFT). 📋 Copy and paste:
 
 **Windows (PowerShell):**
@@ -275,7 +285,7 @@ GUARDRAIL_VERSION = os.environ.get("GUARDRAIL_VERSION", "1")
         )
 ```
 
-> **💡 What this adds.** `guardrailConfig` tells Bedrock to run every request *and* response through your guardrail before your code ever sees it. `GUARDRAIL_ID` comes from the environment variable you set in Step 3a — if it's ever missing the call will error, which is exactly why Step 3a sets it. The rest of the block (`system`, `messages`, `inferenceConfig`) is unchanged from Lab 12A — if your `maxTokens`/`temperature` differ, keep your own values.
+> **💡 What this adds.** `guardrailConfig` tells Bedrock to run every request *and* response through your guardrail before your code ever sees it. `GUARDRAIL_ID` comes from the environment variable you set in Step 5d — if it's ever missing the call will error, which is exactly why Step 5d sets it. The rest of the block (`system`, `messages`, `inferenceConfig`) is unchanged from Lab 12A — if your `maxTokens`/`temperature` differ, keep your own values.
 
 **Step 5c:** Detect and log when the guardrail intervenes. **After** the `response = bedrock.converse(...)` call returns, add:
 
@@ -416,7 +426,7 @@ The AI Practitioner exam tests:
 
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
-| `AccessDeniedException` on invoke | Missing `bedrock:ApplyGuardrail` permission | Re-run Step 4a with your real account ID and guardrail ID |
+| `AccessDeniedException` on invoke | Missing `bedrock:ApplyGuardrail` permission | Re-check `guardrail-policy.json` has your real account ID and guardrail ID (Step 4a), then re-run Step 4b |
 | `ValidationException` creating guardrail | A policy file is malformed, or `PROMPT_ATTACK` output strength isn't `NONE` | Re-check the JSON files in Step 2 |
 | Everything is blocked, even normal questions | Guardrail too strict, or wrong `stopReason` handling | Confirm content filters and denied topic match Step 2; test with a plain "What is S3?" |
 | Guardrail seems ignored | Env vars not set, or DRAFT used instead of version 1 | Re-run Step 5d; confirm `GUARDRAIL_VERSION=1` |
