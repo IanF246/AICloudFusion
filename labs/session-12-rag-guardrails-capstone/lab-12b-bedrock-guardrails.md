@@ -275,7 +275,7 @@ GUARDRAIL_VERSION = os.environ.get("GUARDRAIL_VERSION", "1")
         )
 ```
 
-> **💡 What this adds.** `guardrailConfig` tells Bedrock to run every request *and* response through your guardrail before your code ever sees it. `GUARDRAIL_ID` comes from the environment variable you set in Step 5d — if it's ever missing the call will error, which is exactly why Step 5d sets it. The rest of the block (`system`, `messages`, `inferenceConfig`) is unchanged from Lab 12A — if your `maxTokens`/`temperature` differ, keep your own values.
+> **💡 What this adds.** `guardrailConfig` tells Bedrock to run every request *and* response through your guardrail before your code ever sees it. `GUARDRAIL_ID` comes from the environment variable you set in Step 3a — if it's ever missing the call will error, which is exactly why Step 3a sets it. The rest of the block (`system`, `messages`, `inferenceConfig`) is unchanged from Lab 12A — if your `maxTokens`/`temperature` differ, keep your own values.
 
 **Step 5c:** Detect and log when the guardrail intervenes. **After** the `response = bedrock.converse(...)` call returns, add:
 
