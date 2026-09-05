@@ -242,7 +242,29 @@ AWS just sent a confirmation email to the address you provided. You need to clic
 
 AWS Budgets needs a configuration file that describes your budget. You will create a small JSON file (a structured text file that AWS can read).
 
-1. Open your text editor (VS Code, Notepad, or any editor) and create a **new, empty file**.
+> **📝 A note on text editors — we use VS Code.** Any plain-text editor can create these files (Notepad, TextEdit, nano, etc.), so you are free to use whatever you like. **From here on, though, these labs assume you are using [Visual Studio Code (VS Code)](https://code.visualstudio.com/)** — a free editor from Microsoft. We rely on it much more heavily in later sessions, especially the **Infrastructure as Code (IaC)** labs, where a real editor with a file tree, syntax highlighting, and a built-in terminal makes a big difference. Getting comfortable with it now will pay off later.
+>
+> **Install it (one time only):**
+> 1. Go to [https://code.visualstudio.com/](https://code.visualstudio.com/) and click **Download** for your operating system.
+> 2. Run the installer and accept the defaults.
+> 3. **Windows:** on the "Select Additional Tasks" screen, leave **"Add to PATH"** checked (it already is by default) — this is what lets you launch VS Code from the terminal.
+> 4. **macOS:** open VS Code once, press **Cmd+Shift+P**, type **Shell Command: Install 'code' command in PATH**, and press Enter — this enables the `code` command in Terminal.
+
+**Step 6a: Open your project folder in VS Code**
+
+Your terminal is already inside the `workshop-lab-1b` folder from Step 2. 📋 Copy and paste:
+
+```
+code .
+```
+
+> **What does this do?** `code` launches VS Code, and the `.` (a single dot, meaning "the folder I'm currently in") tells it which folder to open. VS Code starts up with `workshop-lab-1b` as its **file tree** on the left. Every file you create and save here appears in that panel — and, just as importantly, stays in the exact folder your AWS commands read from.
+>
+> **🔧 If you see `'code' is not recognized` or `command not found`:** the `code` command isn't on your PATH yet. Close your terminal and open a fresh one, then try again. If it still fails, reinstall VS Code with the "Add to PATH" option checked (Windows) or run the "Install 'code' command in PATH" step above (macOS).
+
+**Step 6b: Create the budget file**
+
+1. In the VS Code **file tree** (the left panel), click the **New File** icon and name the file `budget.json`. It opens as an empty tab in the editor.
 
 2. 📋 Copy and paste this entire block into the file:
 
@@ -258,9 +280,9 @@ AWS Budgets needs a configuration file that describes your budget. You will crea
 }
 ```
 
-3. **Save the file as `budget.json`** in your `workshop-lab-1b` folder on your Desktop.
+3. **Save** the file with **Ctrl+S** (Windows) or **Cmd+S** (Mac). Because you created it inside the file tree, it saves straight into `workshop-lab-1b` — no need to choose a location.
 
-> **⚠️ Common mistakes:** Make sure the file extension is `.json` (not `.json.txt`). If using Notepad on Windows, change 'Save as type' to 'All Files' before saving.
+> **⚠️ Common mistake:** Make sure the name is exactly `budget.json`, not `budget.json.txt`. Naming the file in the file tree with a `.json` ending sets the file type automatically — you should see a JSON icon next to it.
 
 > **What does this file do?** It defines your budget configuration — the name, dollar limit, type, and time period that AWS Budgets will use.
 
@@ -280,7 +302,7 @@ AWS Budgets needs a configuration file that describes your budget. You will crea
 
 Now create a second file that tells AWS Budgets **when** to send an alert and **where** to send it.
 
-1. Open your text editor and create a **new file**.
+1. In the VS Code **file tree**, click the **New File** icon and name this file `notifications.json`. It opens as an empty tab.
 
 2. 📋 Copy and paste this entire block into the file, **replacing `<YOUR_TOPIC_ARN>`** with the TopicArn you saved in Step 3:
 
@@ -303,9 +325,9 @@ Now create a second file that tells AWS Budgets **when** to send an alert and **
 ]
 ```
 
-3. **Save the file as `notifications.json`** in your `workshop-lab-1b` folder on your Desktop.
+3. **Save** the file with **Ctrl+S** (Windows) or **Cmd+S** (Mac). It saves into `workshop-lab-1b` alongside `budget.json`, and you should now see both files in the file tree.
 
-> **⚠️ Common mistakes:** Make sure the file extension is `.json` (not `.json.txt`). If using Notepad on Windows, change 'Save as type' to 'All Files' before saving.
+> **⚠️ Common mistake:** Make sure the name is exactly `notifications.json`, not `notifications.json.txt`. Naming it in the file tree with a `.json` ending sets the file type automatically.
 
 > **What does this file do?** It tells AWS Budgets when to send an alert (at 80% of your budget) and where to send it (your SNS topic, which forwards to your email).
 
@@ -518,19 +540,25 @@ aws sns list-subscriptions --region us-east-1
 
 ### Step 4: Delete Local Files
 
+> **⚠️ Close VS Code first.** While VS Code has the `workshop-lab-1b` folder open, your operating system treats the folder as "in use" and the delete command below will fail — especially on Windows. Before you delete it, either choose **File → Close Folder** in VS Code or close VS Code entirely. Also note the terminal you run the command in must **not** be sitting inside that folder, which is why the commands below move you to your home directory (`cd ~`) first.
+
 Remove the project folder you created for this lab:
 
 **macOS / Linux:**
 
 ```bash
+cd ~
 rm -rf ~/Desktop/workshop-lab-1b
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
+cd ~
 Remove-Item -Recurse -Force ~\Desktop\workshop-lab-1b
 ```
+
+> **🔧 If you still get "cannot remove ... it is being used by another process" (Windows):** VS Code or one of its terminals is still holding the folder open. Close VS Code completely, open a brand-new PowerShell window, and run the two commands above again.
 
 >[!IMPORTANT]
 >### Step 5: Time to Redo!
