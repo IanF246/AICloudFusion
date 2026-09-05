@@ -193,6 +193,9 @@ make_bucket: <YOUR_UNIQUE_BUCKET_NAME>
 
 > **📝 Write down your bucket name:** ______________________________ *(you will need it for every step below)*
 
+>[!TIP]
+>You can run `aws s3 ls` command in your terminal window to see all active buckets in your environment.
+
 ---
 
 ### Step 4: Create Your Website Files
