@@ -86,13 +86,13 @@ Here are the placeholders you will use in this lab:
 | `<YOUR_ACCOUNT_ID>` | Your 12-digit AWS account ID | `123456789012` |
 | `<YOUR_REGION>` | The AWS region your bucket is in | `us-east-1` |
 
-As you run commands, you will collect two more values:
+As you run commands, you will collect these additional values:
 
 | Value | Where You Get It | Write It Down |
 |-------|-----------------|---------------|
 | OAC ID | Step 4 output | ______________________________ |
-| Distribution ID | Step 7 output | ______________________________ |
-| Distribution Domain | Step 7 output | `dXXXXXX.cloudfront.net` ______________________________ |
+| Distribution ID | Step 6 output | ______________________________ |
+| Distribution Domain | Step 6 output | `dXXXXXX.cloudfront.net` ______________________________ |
 
 ---
 
@@ -144,6 +144,14 @@ mkdir ~/Desktop/workshop-lab-1d
 cd ~/Desktop/workshop-lab-1d
 ```
 
+**Now open the folder in VS Code.** 📋 Copy and paste:
+
+```
+code .
+```
+
+> This opens VS Code with `workshop-lab-1d` as its **file tree**, so the config files you create in the next steps land in the right place. (If you see `'code' is not recognized`, close and reopen your terminal, or revisit Lab 1B, Step 6.)
+
 ---
 
 ### Step 3: Confirm Your S3 Bucket Still Exists
@@ -164,9 +172,7 @@ OAC is the secure handshake that lets CloudFront prove to S3 that requests are c
 
 **Step 4a: Create the OAC config file**
 
-**Use your text editor (VS Code, Notepad++, etc)**
-
-📋 Copy and paste:
+In the VS Code file tree, click the **New File** icon and name the file `oac-config.json`. 📋 Copy and paste this into it:
 
 ```json
 {
@@ -178,7 +184,7 @@ OAC is the secure handshake that lets CloudFront prove to S3 that requests are c
 }
  
 ```
-Save file as `oac-config.json` in your project folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**). You should see `oac-config.json` in the file tree.
 
 > **What does this config mean?**
 > - `SigningProtocol: sigv4` — CloudFront will sign every request to S3 using AWS Signature Version 4. S3 verifies this signature to confirm the request came from CloudFront.
@@ -214,9 +220,7 @@ aws cloudfront create-origin-access-control --origin-access-control-config file:
 
 This is the full configuration for your CloudFront distribution. You will write it to a JSON file, then deploy it with one command.
 
-**Use your text editor (VS Code, Notepad++, etc)**
-
-📋 Copy and paste the entire block, **replacing placeholders**:
+In the VS Code file tree, create a **New File** named `distribution-config.json`. 📋 Copy and paste the entire block into it, **replacing placeholders**:
 - `<YOUR_BUCKET_NAME>` — your S3 bucket name
 - `<YOUR_REGION>` — the region your bucket is in (e.g., `us-east-1`)
 - `<YOUR_OAC_ID>` — the OAC ID from Step 4b
@@ -270,7 +274,7 @@ This is the full configuration for your CloudFront distribution. You will write 
 }
 ```
 
-Save file as `distribution-config.json` in your project folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 > **What do the key settings do?**
 > - `DefaultRootObject: index.html` — when someone visits `https://dXXXX.cloudfront.net/` with no file specified, serve `index.html`
@@ -360,9 +364,7 @@ aws s3api delete-bucket-policy --bucket <YOUR_BUCKET_NAME>
 
 **Step 8b: Write the new CloudFront-only bucket policy**
 
-**Use your text editor (VS Code, Notepad++, etc)**
-
-📋 Copy and paste, **replacing `<YOUR_BUCKET_NAME>`, `<YOUR_ACCOUNT_ID>`, and `<YOUR_DIST_ID>`**:
+In the VS Code file tree, create a **New File** named `cloudfront-bucket-policy.json`. 📋 Copy and paste this into it, **replacing `<YOUR_BUCKET_NAME>`, `<YOUR_ACCOUNT_ID>`, and `<YOUR_DIST_ID>`**:
 
 ```json
 {
@@ -385,7 +387,7 @@ aws s3api delete-bucket-policy --bucket <YOUR_BUCKET_NAME>
   ]
 }
 ```
-Save file as `cloudfront-bucket-policy.json` in your project folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 
 > **What does this policy do?** It allows `s3:GetObject` (read a file) to the AWS CloudFront service principal — but **only** when the request comes from your specific distribution (the `AWS:SourceArn` condition ties it to your Distribution ID). If someone tries to access S3 directly, or if a different CloudFront distribution tries to read your bucket, the request is denied.
@@ -590,11 +592,19 @@ aws cloudfront get-distribution-config --id <YOUR_DIST_ID> --query 'ETag' --outp
 
 Get the current config and save it to a file:
 
-```
+**Windows (PowerShell):**
+
+```powershell
 aws cloudfront get-distribution-config --id <YOUR_DIST_ID> --query "DistributionConfig" | Out-File -FilePath current-dist-config.json -Encoding ascii
 ```
 
-Open the newly created `current-dist-config.json` in a text editor, and in the PrideClass codeblock (controls which CloudFront edge locations your distribution will use), change `"Enabled": true` to `"Enabled": false`, save, then run:
+**macOS / Linux:**
+
+```bash
+aws cloudfront get-distribution-config --id <YOUR_DIST_ID> --query "DistributionConfig" > current-dist-config.json
+```
+
+Open `current-dist-config.json` in VS Code. Find the top-level **`"Enabled": true`** field (near the top of the file) and change it to **`"Enabled": false`**, then save. (Tip: press **Ctrl+F** / **Cmd+F** and search for `Enabled` to jump straight to it.) Then run:
 
 📋 Copy and paste, **replacing `<YOUR_DIST_ID>` and `<ETAG>`**:
 
@@ -653,6 +663,8 @@ aws cloudfront delete-origin-access-control --id <YOUR_OAC_ID> --if-match <OAC_E
 ```
 
 ### Step 5: Delete Local Files
+
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-1d` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
 
 **Windows (PowerShell):**
 
