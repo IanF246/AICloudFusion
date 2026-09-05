@@ -24,7 +24,7 @@ By the end of this lab, you will have a fully configured AWS account with secure
 ## Prerequisites
 
 - An **email address** you have access to (for account verification)
-- A **credit or debit card** (required by AWS to verify your identity — you will not be charged if you follow the cleanup steps in every lab)
+- A **credit or debit card** (required by AWS to verify your identity — see the **Cost Notice** below for what this program actually costs; most labs stay at or near $0.00)
 - A **phone number** (for identity verification during signup)
 - A computer running **Windows, macOS, or Linux**
 
@@ -39,19 +39,27 @@ By the end of this lab, you will have a fully configured AWS account with secure
 | AWS Organizations | Groups AWS accounts together | Always Free |
 | AWS CLI | A program on your computer | Always Free |
 
-**Estimated cost for this lab: $0.00**
+**Estimated cost for _this_ lab (1A): $0.00**
 
-> **💰 Important note about costs:**
+---
 
-When you create your AWS account, you will select the **Paid plan**. This does **not** mean you will be charged immediately—it simply gives you access to all AWS services, and you only pay for what you use.  
+> ### 💰 Important: read this before you start
 
-Previously, all labs in this program were designed to use **Always Free resources** with cleanup steps to keep your bill as close to $0.00 as possible. You will also set up a **cost budget alert** in Lab 1B to monitor usage and as an additional safeguard to catch resources that weren't cleaned up. 
+**New AWS accounts come with free credits — but this program's setup gives them up. That is expected, and here is why.**
 
-⚠️ **Update:** To use **IAM Identity Center**, you must enable **AWS Organizations**. Activating AWS Organizations automatically expires the free credits provided by AWS.  
+When you sign up in 2026, AWS offers new customers a Free Tier worth **up to $200 in credits**: an initial **$100**, plus another **$100** you can earn by completing AWS's onboarding activities. There is a catch that matters for us:
 
-While there is a workaround to remain on the free tier by using personal IAM user settings, this approach is rarely used in real-world company environments, is less secure, and does not align with the project’s goal of providing practical, hands‑on experience.  
+- This program uses **IAM Identity Center** for secure sign-ins (you will set it up in Part 2 of this lab), and Identity Center requires **AWS Organizations**.
+- **The moment you enable AWS Organizations, AWS forfeits those free credits.** For a brand-new account, this happens as soon as you complete Part 2 — so plan as if the credits are not there.
 
-The estimated costs of the labs are relatively small compared to the value of the skills you’ll gain (_Session 2 for example will cost you $3.00 USD that month if you forget to clean up your EC2 isntance and it is left running for the whole month_), but it is important to be aware of them. Each lab write‑up will now include the **associated monthly cost estimates** so you can plan accordingly.
+There *is* a workaround that keeps the credits — using an old-style personal IAM user with long-lived access keys instead of Identity Center — but it is rarely used in real companies, is less secure, and works against the whole point of this program: giving you practical, hands-on experience with how cloud teams actually operate. So we don't use it.
+
+**What this means for your wallet:**
+
+- At signup you will choose the **Paid plan** (Step 7). This does **not** charge you anything up front — you only pay for what you actually use, and most of what we use falls under AWS's **Always Free** limits.
+- The costs that do come up are small. For example, Session 2 costs about **$3.00** for the month *if* you forget to clean up your EC2 instance and leave it running the entire month. Follow each lab's cleanup steps and you will pay far less.
+- Every lab from here on lists its **estimated monthly cost** up front, so there are no surprises.
+- In **Lab 1B**, you will set up a **billing budget alert** — a safety net that emails you if your usage ever climbs toward a threshold you set.
 
 ---
 
@@ -130,7 +138,7 @@ Placeholders are wrapped in `< >` angle brackets and written in UPPER_CASE. **Yo
 1. Enter your **credit or debit card** information
 2. Click **Verify and Continue**
 
-> **⚠️ Will I be charged?** No — AWS requires a payment method to verify your identity and prevent fraud. You will NOT be charged as long as you follow the cleanup steps in every lab. All labs use Always Free resources.
+> **⚠️ Will I be charged now?** No — AWS requires a payment method to verify your identity and prevent fraud; adding a card does not trigger a charge. You only pay for what you actually use, and if you follow each lab's cleanup steps your costs stay at or near $0.00. See the **Cost Notice** above for the details.
 
 ---
 
@@ -149,7 +157,7 @@ You will see two options: **Free** and **Paid**.
 
 **Select the Paid plan.**
 
-> **💡 Why Paid and not Free?** The Free plan limits which services you can use and does not allow you to enable IAM Identity Center (the secure login system we need). The Paid plan gives you access to all services, and you only pay for what you use. However, we are aiming to use only free services.
+> **💡 Why Paid and not Free?** The Free plan restricts which services you can use — including the secure login system (IAM Identity Center) this program relies on — and it automatically closes after six months or once its credits run out, which we don't want happening mid-program. The Paid plan removes those limits and only charges you for what you actually use, which we keep to a minimum (see the **Cost Notice** near the top of this lab).
 
 ---
 
@@ -157,6 +165,8 @@ You will see two options: **Free** and **Paid**.
 
 1. Choose **Basic support - Free**
 2. Click **Complete sign up**
+
+> **⚠️ Choose Basic support — nothing else.** Basic support is free. Every other support plan carries a **fixed monthly charge starting at $29 USD**, billed whether or not you use it. For these labs you only ever need **Basic support - Free**, so make sure it is the option selected before you continue.
 
 ---
 
@@ -421,7 +431,7 @@ aws configure sso
 
 **What happens next:**
 1. Your web browser will open to a login page
-2. Log in with the **Identity Center username and password** you created in Steps 12 (NOT the root user credentials)
+2. Log in with the **Identity Center username and password** you created in Step 12 (NOT the root user credentials)
 3. Click **Allow** or **Approve** when asked to authorize the request
 4. Go back to your terminal — it will continue automatically
 
@@ -442,14 +452,7 @@ aws configure sso
 > You will need this for every future lab. It looks something like `AdministratorAccess-123456789012`.
 
 
-You are doing a one‑time configuration that creates:
-
-- an SSO session block in ~/.aws/config
-- a profile that points to that SSO session
-- your default region + output format
-
-This configuration persists on disk.
-It does not disappear when you close the terminal, restart your machine, or open a new CLI window.
+> **💡 This is a one-time setup.** `aws configure sso` writes an SSO session block, a profile pointing to it, and your default region and output format into `~/.aws/config`. It persists on disk — it does **not** disappear when you close the terminal, restart your machine, or open a new window. You only run this once per computer.
 
 ---
 
@@ -573,7 +576,7 @@ Keep these values somewhere safe — you will need them for every future lab:
 | Browser does not open during `aws configure sso` | Browser launch failed | Look in your terminal for a URL — copy it and paste it into your browser manually. |
 | `Error when retrieving token from sso: Token has expired` | Your SSO session expired (normal) | Run `aws sso login --profile <YOUR_PROFILE_NAME>` again. |
 | Wrong account number in `get-caller-identity` output | You may have selected the wrong account during SSO setup | Run `aws configure sso` again and select the correct account. |
-|No credits available| AWS has the credit card on file previously | 1) Log back into original account. If closed, contact support to reopen which can take 24hrs or 2) Create new account with a different card |
+| No new-customer credits offered at signup | You used a card (or identity) AWS has seen before, so the account isn't eligible for the $100–$200 new-customer credits | This usually doesn't block you — this program forfeits those credits anyway when you enable AWS Organizations in Part 2. If you specifically want the credits for other learning, sign up with a different card, or log back into your original account (if it was closed, contact AWS Support to reopen it, which can take up to 24 hrs). |
 
 ---
 
