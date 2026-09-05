@@ -424,7 +424,8 @@ This lab covers concepts from the **Cost Optimization** pillar of the AWS Well-A
 
 ## Cleanup
 
-**⚠️ Important:** Always clean up resources after completing a lab to avoid unexpected charges. Follow these steps in order.
+>[!IMPORTANT]
+>**⚠️** Always clean up resources after completing a lab to avoid unexpected charges. Follow these steps in order.
 
 ### Step 1: Delete the Budget
 
@@ -531,10 +532,11 @@ rm -rf ~/Desktop/workshop-lab-1b
 Remove-Item -Recurse -Force ~\Desktop\workshop-lab-1b
 ```
 
-### Step 5: Time to Redo!
-Now that you’ve successfully cleaned up this lab, it’s strongly recommended to **set up a budget again** for the duration of the project. Associating a budget with any project is considered best practice, and in this case the cost of keeping this budget, SNS topic and subscription active over three months should remain at zero or very close to it. Whereas, the **safeguard it provides in alerting you** in advance if any resources consuming credits are left behind, is invaluable.
-
-To set it back up, simply **repeat Steps 3 through 8** of this lab — create the SNS topic, confirm your email subscription, and recreate the budget. This time, **leave it in place** rather than deleting it at the end, so it keeps watching your account for the rest of the program.
+>[!IMPORTANT]
+>### Step 5: Time to Redo!
+>Now that you’ve successfully cleaned up this lab, it’s strongly recommended to **set up a budget again** for the duration of the project. Associating a budget with any project is considered best practice, and in this case the cost of keeping this budget, SNS topic and subscription active over three months should remain at zero or very close to it. Whereas, the **safeguard it provides in alerting you** in advance if any resources consuming credits are left behind, is invaluable.
+>
+>To set it back up, simply **repeat Steps 3 through 8** of this lab — create the SNS topic, confirm your email subscription, and recreate the budget. This time, **leave it in place** rather than deleting it at the end, so it keeps watching your account for the rest of the program.
 
 ---
 
