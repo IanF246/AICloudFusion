@@ -535,7 +535,9 @@ aws sts get-caller-identity
 **✅ You should see the same output as Step 22** — but without needing `--profile`.
 
 >[!IMPORTANT]
-> **⚠️ This default only lasts for the current terminal session.** If you close the terminal, you will need to:
+> **⚠️ This default only lasts for the current terminal session.** `$env:AWS_PROFILE` (PowerShell) and `export AWS_PROFILE` (macOS/Linux) set an **environment variable** — a temporary setting that lives *inside the terminal window you're currently using*. The AWS CLI reads it automatically, which is why you no longer need `--profile` on every command.
+>
+> Because this variable lives only in that one terminal's memory and is never saved to disk, it **disappears the moment you close the window**. Open a fresh terminal and it's gone — so each new session you will need to:
 > 1. Run `aws sso login --profile <YOUR_PROFILE_NAME>` to log in again
 > 2. Run the profile command above again
 
