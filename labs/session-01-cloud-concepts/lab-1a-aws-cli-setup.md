@@ -43,7 +43,8 @@ By the end of this lab, you will have a fully configured AWS account with secure
 
 ---
 
-> ### 💰 Important: read this before you start
+>[!IMPORTANT]
+>### 💰 Read this before you start
 
 **New AWS accounts come with free credits — but this program's setup gives them up. That is expected, and here is why.**
 
@@ -106,6 +107,7 @@ Placeholders are wrapped in `< >` angle brackets and written in UPPER_CASE. **Yo
 4. Check your email inbox for a **verification code** from AWS
 5. Enter the verification code on the signup page and click **Verify**
 
+>[!NOTE]
 > **💡 What is a "root user"?** The root user is the owner of the AWS account. It has full, unrestricted access to everything. Think of it like the master key to a building — you should rarely use it. Later in this lab, you will create a separate user for your day-to-day work, which is a security best practice.
 
 ---
@@ -166,6 +168,7 @@ You will see two options: **Free** and **Paid**.
 1. Choose **Basic support - Free**
 2. Click **Complete sign up**
 
+>[!WARNING]
 > **⚠️ Choose Basic support — nothing else.** Basic support is free. Every other support plan carries a **fixed monthly charge starting at $29 USD**, billed whether or not you use it. For these labs you only ever need **Basic support - Free**, so make sure it is the option selected before you continue.
 
 ---
@@ -317,6 +320,7 @@ Let's verify that your new user can log in through the AWS access portal.
 
 **✅ Checkpoint:** You are now logged in to the AWS Console as your Identity Center user (not the root user). You should see the console homepage. Check the top-right corner — it should show your username and the role `AdministratorAccess`.
 
+>[!TIP]
 > **🎉 From now on, always use this login method** (the access portal URL) instead of signing in as the root user. The root user should only be used for account-level tasks like changing your payment method or closing the account.
 
 ---
@@ -530,6 +534,7 @@ aws sts get-caller-identity
 
 **✅ You should see the same output as Step 22** — but without needing `--profile`.
 
+>[!IMPORTANT]
 > **⚠️ This default only lasts for the current terminal session.** If you close the terminal, you will need to:
 > 1. Run `aws sso login --profile <YOUR_PROFILE_NAME>` to log in again
 > 2. Run the profile command above again
@@ -584,6 +589,7 @@ Keep these values somewhere safe — you will need them for every future lab:
 
 No AWS resources were created in this lab that incur charges. The account, Identity Center, Organization, user, group, and permission set are all free.
 
+>[!CAUTION]
 > **⚠️ Do NOT delete your account, Identity Center setup, or user** — you need all of these for every future lab.
 
 ---
