@@ -24,7 +24,7 @@ This is one of the most common tasks for cloud engineers — hosting static cont
 
 - ✅ Completed **Lab 1A** (AWS CLI installed and configured)
 - ✅ AWS CLI authenticated — run `aws sts get-caller-identity` and confirm it returns your account info
-- ✅ A text editor to create HTML files (VS Code, Notepad, or any editor you are comfortable with)
+- ✅ **VS Code** installed and the `code` command working (you set this up in Lab 1B) — any text editor will do, but these labs assume VS Code
 
 ---
 
@@ -34,8 +34,7 @@ This is one of the most common tasks for cloud engineers — hosting static cont
 |---------|-----------|----------------|
 | Amazon S3 | Cloud storage for files | $0.023 per GB/month, $0.0005 per 1,000 PUT/GET requests |
 
-**Estimated cost of this lab will be $0.02**
-
+**Estimated cost for this lab: ~$0.02** (effectively $0.00 if you complete the cleanup steps promptly)
 
 ---
 
@@ -138,6 +137,16 @@ pwd
 
 > **💡 From now on, save ALL files you create in this lab to this folder.** When the lab says "save the file," save it here. This is where your terminal is looking for files.
 
+**Step 2c: Open the folder in VS Code**
+
+📋 Copy and paste:
+
+```
+code .
+```
+
+> **What does this do?** This opens VS Code with `workshop-lab-1c` as its **file tree** on the left, so every file you create in the next steps lands in the right place. (You set up the `code` command in Lab 1B — if you see `'code' is not recognized`, close and reopen your terminal, or revisit Lab 1B, Step 6.)
+
 ---
 
 ### Step 3: Create an S3 Bucket
@@ -150,7 +159,7 @@ An S3 bucket is where your website files will live. Bucket names must be **globa
 - No spaces, no uppercase letters, no underscores
 - Must start with a letter or number
 
-**Good examples:** `jane-doe-cloud-workshop-site`, `jd-workshop-2025`, `my-first-aws-website-42`
+**Good examples:** `jane-doe-cloud-workshop-site`, `jd-workshop-2026`, `my-first-aws-website-42`
 
 📋 Copy and paste this command, **replacing `<YOUR_UNIQUE_BUCKET_NAME>`** with a name you choose:
 
@@ -204,7 +213,7 @@ mkdir my-website
 
 ---
 
-**Now create the homepage.** Open your text editor (VS Code, Notepad, etc.) and create a new file. 📋 Copy and paste this entire block into the file:
+**Now create the homepage.** In the VS Code file tree, open the `my-website` folder, click the **New File** icon, and name the file `index.html`. 📋 Copy and paste this entire block into it:
 
 ```html
 <!DOCTYPE html>
@@ -240,7 +249,7 @@ mkdir my-website
 </html>
 ```
 
-**Save this file as `index.html` inside the `my-website` folder** in your `workshop-lab-1c` folder on your Desktop.
+**Save** the file with **Ctrl+S** (Windows) or **Cmd+S** (Mac). Because you created it inside `my-website`, it saves there automatically — you should see `index.html` under `my-website` in the file tree.
 
 > **💡 Feel free to customize!** Change the text to say your name, change the colors, add more content. This is your website — make it yours.
 
@@ -248,7 +257,7 @@ mkdir my-website
 
 ---
 
-**Now create the error page.** Create another new file in your text editor. 📋 Copy and paste this:
+**Now create the error page.** In the file tree, create another **New File** inside `my-website` and name it `error.html`. 📋 Copy and paste this:
 
 ```html
 <!DOCTYPE html>
@@ -275,7 +284,7 @@ mkdir my-website
 </html>
 ```
 
-**Save this file as `error.html` inside the `my-website` folder** in your `workshop-lab-1c` folder on your Desktop.
+**Save** the file (**Ctrl+S** / **Cmd+S**). You should see `error.html` appear next to `index.html` in the file tree.
 
 **Your folder should now look like this:**
 
@@ -389,7 +398,7 @@ aws s3api put-public-access-block --bucket <YOUR_UNIQUE_BUCKET_NAME> --public-ac
 
 Now you need to tell S3 **who** is allowed to access your files. You will create a **bucket policy** — a JSON file that defines the access rules.
 
-1. Open your text editor (VS Code, Notepad, or any editor) and create a **new, empty file**.
+1. In the VS Code file tree, at the **top level** of `workshop-lab-1c` (not inside `my-website`), click the **New File** icon and name it `bucket-policy.json`.
 
 2. 📋 Copy and paste this entire block into the file, **replacing `<YOUR_UNIQUE_BUCKET_NAME>`** on the `Resource` line:
 
@@ -413,9 +422,9 @@ Now you need to tell S3 **who** is allowed to access your files. You will create
 > "Resource": "arn:aws:s3:::jane-doe-cloud-workshop-site/*"
 > ```
 
-3. **Save the file as `bucket-policy.json`** in your `workshop-lab-1c` folder on your Desktop (not inside the `my-website` folder).
+3. **Save** the file (**Ctrl+S** / **Cmd+S**). It should sit at the top level of `workshop-lab-1c`, alongside the `my-website` folder — **not** inside `my-website`.
 
-> **⚠️ Common mistakes:** Make sure the file extension is `.json` (not `.json.txt`). If using Notepad on Windows, change 'Save as type' to 'All Files' before saving.
+> **⚠️ Common mistake:** Make sure the name is exactly `bucket-policy.json`, not `bucket-policy.json.txt`. Naming it in the file tree with a `.json` ending sets the file type automatically.
 
 > **What does this file do?** It defines a bucket policy that allows anyone on the internet to view the files in your S3 bucket — which is what you want for a public website.
 
@@ -579,19 +588,25 @@ Go back to your browser and refresh the website URL from Step 9.
 
 ### Step 5: Delete Local Files
 
+> **⚠️ Close VS Code first.** While VS Code has the `workshop-lab-1c` folder open, your operating system treats the folder as "in use" and the delete command below will fail — especially on Windows. Before you delete it, either choose **File → Close Folder** in VS Code or close VS Code entirely. The commands below also move you to your home directory (`cd ~`) first so the terminal isn't sitting inside the folder it's deleting.
+
 Remove the project folder you created for this lab:
 
 **macOS / Linux:**
 
 ```bash
+cd ~
 rm -rf ~/Desktop/workshop-lab-1c
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
+cd ~
 Remove-Item -Recurse -Force ~\Desktop\workshop-lab-1c
 ```
+
+> **🔧 If you still get "cannot remove ... it is being used by another process" (Windows):** VS Code or one of its terminals is still holding the folder open. Close VS Code completely, open a brand-new PowerShell window, and run the two commands above again.
 
 ---
 
