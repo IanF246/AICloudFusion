@@ -22,7 +22,7 @@ By the end of this lab, you will have:
 
 - ✅ Completed **Lab 1A** (AWS CLI installed and configured)
 - ✅ AWS CLI authenticated — run `aws sts get-caller-identity` and confirm it returns your account info
-- ✅ Your **AWS account ID** (the 12-digit number from Lab 1A, Step 6)
+- ✅ Your **AWS account ID** (the 12-digit number you saved in Lab 1A, Step 22)
 - ✅ An **email address** you can check during this lab (you will need to click a confirmation link)
 
 ---
@@ -68,6 +68,7 @@ Here are the placeholders you will use in this lab:
 | `<YOUR_ACCOUNT_ID>` | Your 12-digit AWS account number | `123456789012` |
 | `<YOUR_EMAIL_ADDRESS>` | An email address you can check right now | `jane.doe@gmail.com` |
 | `<YOUR_TOPIC_ARN>` | The TopicArn value returned in Step 3 (you will get this during the lab) | `arn:aws:sns:us-east-1:123456789012:workshop-budget-alert` |
+| `<YOUR_SUBSCRIPTION_ARN>` | The SubscriptionArn from the Cleanup step (the topic ARN followed by a long random ID) | `arn:aws:sns:us-east-1:123456789012:workshop-budget-alert:1a2b3c4d-5e6f-7890-abcd-ef1234567890` |
 
 ---
 
@@ -435,9 +436,49 @@ aws budgets delete-budget --account-id <YOUR_ACCOUNT_ID> --budget-name "workshop
 
 **✅ No output means success.**
 
-### Step 2: Delete the SNS Topic and Subscription
+### Step 2: Delete the SNS Subscription, Then the Topic
 
-Deleting the topic automatically removes all subscriptions attached to it.
+An email subscription is **not** reliably removed when you delete its topic — it can linger and must be deleted explicitly. So you will remove the subscription first, then the topic.
+
+**Step 2a: Find the subscription's ARN**
+
+📋 Copy and paste this command, **replacing `<YOUR_TOPIC_ARN>`**:
+
+```
+aws sns list-subscriptions-by-topic --topic-arn <YOUR_TOPIC_ARN> --region us-east-1
+```
+
+**✅ You should see output like this:**
+
+```json
+{
+    "Subscriptions": [
+        {
+            "SubscriptionArn": "arn:aws:sns:us-east-1:123456789012:workshop-budget-alert:1a2b3c4d-5e6f-7890-abcd-ef1234567890",
+            "Owner": "123456789012",
+            "Protocol": "email",
+            "Endpoint": "jane.doe@gmail.com",
+            "TopicArn": "arn:aws:sns:us-east-1:123456789012:workshop-budget-alert"
+        }
+    ]
+}
+```
+
+> **📝 Copy the full `SubscriptionArn` value** — you will use it in the next command. Notice it is the topic ARN followed by a long random ID; that trailing ID is what makes it different from your `TopicArn`.
+>
+> **If `SubscriptionArn` shows `PendingConfirmation`** instead of a full ARN, you never confirmed the email. It cannot be unsubscribed and expires on its own after 3 days — skip to **Step 2c** and just delete the topic.
+
+**Step 2b: Delete the subscription**
+
+📋 Copy and paste this command, **replacing `<YOUR_SUBSCRIPTION_ARN>`** with the value you just copied:
+
+```
+aws sns unsubscribe --subscription-arn <YOUR_SUBSCRIPTION_ARN> --region us-east-1
+```
+
+**✅ No output means success.**
+
+**Step 2c: Delete the topic**
 
 📋 Copy and paste this command, **replacing `<YOUR_TOPIC_ARN>`**:
 
@@ -446,8 +487,6 @@ aws sns delete-topic --topic-arn <YOUR_TOPIC_ARN> --region us-east-1
 ```
 
 **✅ No output means success.**
-
-Go to the AWS Console and manually remove the orphaned subscripton.
 
 ### Step 3: Verify Everything Is Gone
 
@@ -465,9 +504,16 @@ aws sns list-topics --region us-east-1
 
 **✅ You should see** that `workshop-budget-alert` is no longer in the list.
 
+```
+aws sns list-subscriptions --region us-east-1
+```
+
+**✅ You should see** no subscription pointing to the `workshop-budget-alert` topic with your email address. (A leftover entry whose `SubscriptionArn` reads `Deleted` is harmless and disappears on its own.)
+
 **✅ Checkpoint — Verify in the AWS Console:**
 1. Go to **AWS Budgets** — confirm `workshop-monthly-budget` is gone
-2. Go to **SNS > Topics** — confirm `workshop-budget-alert` is gone
+2. Go to **SNS → Topics** — confirm `workshop-budget-alert` is gone
+3. Go to **SNS → Subscriptions** — confirm no subscription for your email remains
 
 ### Step 4: Delete Local Files
 
@@ -487,6 +533,8 @@ Remove-Item -Recurse -Force ~\Desktop\workshop-lab-1b
 
 ### Step 5: Time to Redo!
 Now that you’ve successfully cleaned up this lab, it’s strongly recommended to **set up a budget again** for the duration of the project. Associating a budget with any project is considered best practice, and in this case the cost of keeping this budget, SNS topic and subscription active over three months should remain at zero or very close to it. Whereas, the **safeguard it provides in alerting you** in advance if any resources consuming credits are left behind, is invaluable.
+
+To set it back up, simply **repeat Steps 3 through 8** of this lab — create the SNS topic, confirm your email subscription, and recreate the budget. This time, **leave it in place** rather than deleting it at the end, so it keeps watching your account for the rest of the program.
 
 ---
 
