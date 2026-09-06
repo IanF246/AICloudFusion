@@ -13,7 +13,7 @@ In this lab, you will launch a **virtual server** on AWS using Amazon EC2 (Elast
 
 **What you will do:**
 - Create an IAM role so the server can communicate with AWS services
-- Launch the smallest EC2 instance available which would be the t3a.nano. (May 2026)
+- Launch one of the smallest EC2 instances available, the `t3a.nano` (as of 2026)
 - Connect to it using Session Manager (a browser-based terminal)
 - Explore the instance (check OS, memory, disk)
 - Terminate the instance and verify it's gone
@@ -29,15 +29,18 @@ In this lab, you will launch a **virtual server** on AWS using Amazon EC2 (Elast
 
 ## Cost Notice
 
-| Service | What It Is | Credits Needed |
+| Service | What It Is | Cost |
 |---------|-----------|----------------|
-| Amazon EC2 (eg. t3a.nano) | Virtual server | $0.0047/hr |
+| Amazon EC2 (e.g., t3a.nano) | Virtual server | $0.0047/hr |
 | AWS Systems Manager (Session Manager) | Remote connection to instances | Always Free |
 | IAM | Identity and access management | Always Free |
 
-**Estimated cost for this lab is 0.01**  
+**Estimated cost for this lab: ~$0.01** (a few cents for the short time the instance runs)
 
-If you run the EC2 instance for _a month in error_ you can expect $3.80, which is why we need to be deleting resources after each lab.
+>[!CAUTION]
+>If you leave the EC2 instance running _by mistake_, a full month would cost roughly **$3.80** (compute plus a small EBS storage charge) — which is exactly why we terminate resources at the end of every lab.
+>
+>Always check your Billing and Costing service within the console to see if any services are running unexpected costs.
 
 ---
 
@@ -138,15 +141,25 @@ pwd
 
 > **💡 From now on, save ALL files you create in this lab to this folder.** When the lab says "save the file," save it here. This is where your terminal is looking for files.
 
+**Step 2c: Open the folder in VS Code**
+
+📋 Copy and paste:
+
+```
+code .
+```
+
+> **What does this do?** This opens VS Code with `workshop-lab-2a` as its **file tree** on the left, so the file you create in the next step lands in the right place. (You set up the `code` command in Lab 1B — if you see `'code' is not recognized`, close and reopen your terminal, or revisit Lab 1B, Step 6.)
+
 ---
 
 ### Step 3: Create an IAM Role for the EC2 Instance
 
 Before launching the instance, we need to create a **role** that gives it permission to use Session Manager. Without this role, you won't be able to connect to the instance.
 
-1. Open your text editor (VS Code, Notepad, or any editor) and create a **new, empty file**.
+1. In the VS Code file tree, click the **New File** icon and name the file `ec2-trust-policy.json`.
 
-2. 📋 Copy and paste this entire block into the file:
+2. 📋 Copy and paste this entire block into it:
 
 ```json
 {
@@ -163,9 +176,9 @@ Before launching the instance, we need to create a **role** that gives it permis
 }
 ```
 
-3. **Save the file as `ec2-trust-policy.json`** in your `workshop-lab-2a` folder on your Desktop.
+3. **Save** the file (**Ctrl+S** / **Cmd+S**). You should see `ec2-trust-policy.json` appear in the file tree.
 
-> **⚠️ Common mistakes:** Make sure the file extension is `.json` (not `.json.txt`). If using Notepad on Windows, change 'Save as type' to 'All Files' before saving.
+> **⚠️ Common mistake:** Make sure the name is exactly `ec2-trust-policy.json`, not `ec2-trust-policy.json.txt`. Naming it in the file tree with a `.json` ending sets the file type automatically.
 
 > **What does this file do?** This is a "trust policy" — it tells AWS that EC2 instances are allowed to use this role. Think of it as saying "this role is for EC2 servers."
 
@@ -327,7 +340,7 @@ cat /etc/os-release
 ```bash
 free -h
 ```
-> You should see about 1 GB (this is a t3a.nano)
+> You should see about 0.5 GB / 512 MB (this is a t3a.nano)
 
 **Check disk space:**
 ```bash
@@ -448,17 +461,21 @@ aws iam delete-role --role-name workshop-ec2-ssm-role
 
 ### Step 4: Delete Local Files
 
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-2a` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below. The commands also move you to your home directory (`cd ~`) first so the terminal isn't sitting inside the folder it's deleting.
+
 Remove the project folder you created for this lab:
 
 **macOS / Linux:**
 
 ```bash
+cd ~
 rm -rf ~/Desktop/workshop-lab-2a
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
+cd ~
 Remove-Item -Recurse -Force ~\Desktop\workshop-lab-2a
 ```
 
