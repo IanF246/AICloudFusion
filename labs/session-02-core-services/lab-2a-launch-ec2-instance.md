@@ -421,7 +421,8 @@ EC2 is one of the most heavily tested services on the SAA exam. Understanding in
 
 ## Cleanup
 
-**⚠️ Important:** Always terminate EC2 instances when you're done. A running instance uses credits.
+>[!IMPORTANT]
+>**⚠️** Always terminate EC2 instances when you're done. A running instance has increasing costs.
 
 ### Step 1: Terminate the Instance
 
