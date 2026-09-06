@@ -30,14 +30,14 @@ This is a real-world pattern — applications running on EC2 frequently need to 
 
 ## Cost Notice
 
-| Service | What It Is | Credits Needed |
+| Service | What It Is | Cost |
 |---------|-----------|----------------|
-| Amazon EC2 (t3a.nano) | Virtual server | 0.0047 per hour |
-| Amazon S3 | Cloud storage | 0.023 per GB |
+| Amazon EC2 (t3a.nano) | Virtual server | $0.0047/hr |
+| Amazon S3 | Cloud storage | $0.023 per GB/month |
 | AWS Systems Manager | Remote connection | Always Free |
 | IAM | Access management | Always Free |
 
-**Estimated cost for this lab is 0.02**
+**Estimated cost for this lab: ~$0.02** (effectively $0.00 if you complete the cleanup steps promptly)
 
 ---
 
@@ -132,6 +132,16 @@ pwd
 
 > **💡 From now on, save ALL files you create in this lab to this folder.** When the lab says "save the file," save it here. This is where your terminal is looking for files.
 
+**Step 2c: Open the folder in VS Code**
+
+📋 Copy and paste:
+
+```
+code .
+```
+
+> **What does this do?** This opens VS Code with `workshop-lab-2b` as its **file tree** on the left, so the file you create in Step 5 lands in the right place. (You set up the `code` command in Lab 1B — if you see `'code' is not recognized`, close and reopen your terminal, or revisit Lab 1B, Step 6.)
+
 ---
 
 ### Step 3: Create an S3 Bucket
@@ -162,9 +172,9 @@ aws ssm get-parameters-by-path --path "/aws/service/ami-amazon-linux-latest" --r
 
 **Create the trust policy file** (`ec2-trust-policy.json`):
 
-1. Open your text editor (VS Code, Notepad, or any editor) and create a **new, empty file**.
+1. In the VS Code file tree, click the **New File** icon and name the file `ec2-trust-policy.json`.
 
-2. 📋 Copy and paste this entire block into the file:
+2. 📋 Copy and paste this entire block into it:
 
 ```json
 {
@@ -181,9 +191,9 @@ aws ssm get-parameters-by-path --path "/aws/service/ami-amazon-linux-latest" --r
 }
 ```
 
-3. **Save the file as `ec2-trust-policy.json`** in your `workshop-lab-2b` folder on your Desktop.
+3. **Save** the file (**Ctrl+S** / **Cmd+S**). You should see `ec2-trust-policy.json` appear in the file tree.
 
-> **⚠️ Common mistakes:** Make sure the file extension is `.json` (not `.json.txt`). If using Notepad on Windows, change 'Save as type' to 'All Files' before saving.
+> **⚠️ Common mistake:** Make sure the name is exactly `ec2-trust-policy.json`, not `ec2-trust-policy.json.txt`. Naming it in the file tree with a `.json` ending sets the file type automatically.
 
 > **What does this file do?** This is a "trust policy" — it tells AWS that EC2 instances are allowed to use this role. Think of it as saying "this role is for EC2 servers."
 
@@ -302,13 +312,23 @@ Let's also test downloading. First, create another file in S3 from your **local 
 
 **On your local terminal,** create and upload a file:
 
-📋 Copy and paste, **replacing `<YOUR_UNIQUE_BUCKET_NAME>`**:
+📋 Create the file:
 
-```
+**macOS / Linux:**
+
+```bash
 echo "This file was uploaded from my local computer" > local-file.txt
 ```
 
-> **Windows PowerShell:** `"This file was uploaded from my local computer" | Out-File -Encoding utf8 local-file.txt`
+**Windows (PowerShell):**
+
+```powershell
+"This file was uploaded from my local computer" | Out-File -Encoding utf8 local-file.txt
+```
+
+> **Why the difference?** On Windows, a plain `echo ... >` writes the file in UTF-16, which shows up as garbled characters when you `cat` it on Linux later. `Out-File -Encoding utf8` avoids that.
+
+📋 Then upload it, **replacing `<YOUR_UNIQUE_BUCKET_NAME>`**:
 
 ```
 aws s3 cp local-file.txt s3://<YOUR_UNIQUE_BUCKET_NAME>/local-file.txt
@@ -430,17 +450,21 @@ aws iam delete-role --role-name workshop-ec2-s3-role
 
 ### Step 5: Delete Local Files
 
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-2b` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below. The commands also move you to your home directory (`cd ~`) first so the terminal isn't sitting inside the folder it's deleting.
+
 Remove the project folder you created for this lab:
 
 **macOS / Linux:**
 
 ```bash
+cd ~
 rm -rf ~/Desktop/workshop-lab-2b
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
+cd ~
 Remove-Item -Recurse -Force ~\Desktop\workshop-lab-2b
 ```
 
