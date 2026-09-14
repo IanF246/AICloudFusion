@@ -32,7 +32,7 @@ In this lab, you will:
 
 - ✅ Completed **Lab 4C** — you need an active GuardDuty detector, SNS topic with confirmed email subscription, and EventBridge rule
 - ✅ AWS CLI authenticated — run `aws sts get-caller-identity` to confirm
-- ✅ A text editor (VS Code, Notepad, or any editor)
+- ✅ **VS Code** installed (from Lab 1B) — any text editor works, but these labs assume VS Code
 
 > **💡 If you cleaned up Lab 4C:** Re-run Steps 3–11 of Lab 4C to recreate the GuardDuty detector, SNS topic, email subscription, and EventBridge rule before continuing here. You do not need to test the pipeline again — just have those resources in place.
 
@@ -148,15 +148,23 @@ pwd
 
 > **💡 Save ALL files you create in this lab to this folder.**
 
+**Open the folder in VS Code.** 📋 Copy and paste:
+
+```
+code .
+```
+
+> This opens VS Code with `workshop-lab-4d` as its **file tree**, so the Python and JSON files you create land in the right place. (You set up the `code` command in Lab 1B — if you see `'code' is not recognized`, close and reopen your terminal, or revisit Lab 1B, Step 6.)
+
 ---
 
 ### Step 3: Write the Lambda Function
 
 This is the Python code that transforms raw GuardDuty JSON into a structured, human-readable email.
 
-**Step 3a:** Open your text editor and create a **new, empty file**.
+**Step 3a:** In the VS Code file tree, click the **New File** icon and name the file `format_finding.py`.
 
-**Step 3b:** 📋 Copy and paste this entire block into the file:
+**Step 3b:** 📋 Copy and paste this entire block into it:
 
 ```python
 import json
@@ -301,7 +309,7 @@ def lambda_handler(event, context):
     return {'statusCode': 200, 'body': 'Alert sent.'}
 ```
 
-**Step 3c:** Save the file as `format_finding.py` in your `workshop-lab-4d` folder.
+**Step 3c:** **Save** the file (**Ctrl+S** / **Cmd+S**). You should see `format_finding.py` in the file tree.
 
 > **What does this code do?**
 >
@@ -359,7 +367,7 @@ Lambda functions need an IAM role to authenticate with other AWS services. You w
 
 **Step 5a: Write the trust policy**
 
-Open your text editor and create a **new, empty file**. 📋 Copy and paste this block into it (no placeholders to replace):
+In the VS Code file tree, create a **New File** named `lambda-trust-policy.json`. 📋 Copy and paste this block into it (no placeholders to replace):
 
 ```json
 {
@@ -376,7 +384,7 @@ Open your text editor and create a **new, empty file**. 📋 Copy and paste this
 }
 ```
 
-Save the file as `lambda-trust-policy.json` in your `workshop-lab-4d` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 > **What does this do?** It tells AWS: "the Lambda service is allowed to assume this role." Without this, Lambda cannot use the role to call other services on your behalf.
 
@@ -404,7 +412,7 @@ aws iam create-role --role-name workshop-lambda-guardduty-role --assume-role-pol
 
 **Step 5c: Write the permissions policy**
 
-Open your text editor and create a **new, empty file**. 📋 Copy and paste this block into it, **replacing `<TOPIC_ARN>`** (1 place), reference Lab 4c:
+In the VS Code file tree, create a **New File** named `lambda-permissions.json`. 📋 Copy and paste this block into it, **replacing `<TOPIC_ARN>`** with your SNS topic ARN from Lab 4C:
 
 ```json
 {
@@ -420,7 +428,7 @@ Open your text editor and create a **new, empty file**. 📋 Copy and paste this
 }
 ```
 
-Save the file as `lambda-permissions.json` in your `workshop-lab-4d` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 > **What does this do?** It grants Lambda permission to publish to your specific SNS topic and nothing else. Scoping the `Resource` to your exact topic ARN (instead of `*`) follows the principle of least privilege — the function can only publish to the one topic it needs.
 
@@ -552,10 +560,23 @@ aws events remove-targets --rule workshop-guardduty-alert --ids sns-target --reg
 
 **Step 9b: Add Lambda as the new target**
 
-📋 Copy and paste, **replacing `<LAMBDA_ARN>`**:
+Passing the target inline is fiddly across shells (the quoting breaks easily), so put it in a small file — the reliable, cross-platform way.
+
+In the VS Code file tree, create a **New File** named `lambda-target.json`. 📋 Copy and paste this into it, **replacing `<LAMBDA_ARN>`**:
+
+```json
+[
+    {
+        "Id": "lambda-target",
+        "Arn": "<LAMBDA_ARN>"
+    }
+]
+```
+
+**Save** the file (**Ctrl+S** / **Cmd+S**), then add the target:
 
 ```
-aws events put-targets --rule workshop-guardduty-alert --targets '[{\"Id\":\"lambda-target\",\"Arn\":\"<LAMBDA_ARN>\"}]' --region us-east-1
+aws events put-targets --rule workshop-guardduty-alert --targets file://lambda-target.json --region us-east-1
 ```
 
 **✅ You should see** JSON output with `"FailedEntryCount": 0`.
@@ -819,6 +840,8 @@ aws logs delete-log-group --log-group-name /aws/lambda/workshop-guardduty-format
 Return to **Lab 4C — Cleanup** and run all steps there to remove the EventBridge rule, SNS topic, and GuardDuty detector.
 
 ### Step 8: Delete Local Files
+
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-4d` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
 
 **Windows (PowerShell):**
 
