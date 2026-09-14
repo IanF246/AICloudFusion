@@ -36,7 +36,8 @@ By the end of this lab, you will understand how GuardDuty monitors your AWS envi
 
 **Estimated cost for this lab: $0.00** (uses sample findings only, within free trial)
 
-**⚠️ Important:** GuardDuty has a 30-day free trial per account per region. After 30 days, it costs money based on the volume of data analyzed. This lab uses **sample findings** which are always free. You **MUST** delete the detector in the cleanup section to avoid charges after your trial ends.
+>[!IMPORTANT]
+>**⚠️** GuardDuty has a 30-day free trial per account per region. This lab uses **sample findings**, which are always free — so the lab itself costs **$0.00**. But if you leave the detector enabled past the trial, GuardDuty starts charging for the data it continuously analyzes — roughly **$4.00 per million CloudTrail management events** plus **$1.00/GB** of VPC Flow Log + DNS log analysis (us-east-1). On an idle learning account that works out to about **a few cents to ~$1–2 per month** — small, but ongoing and open-ended (and higher if you leave an EC2 instance running and generating traffic). That is why you **MUST** delete the detector in the cleanup section.
 
 ---
 
@@ -70,8 +71,8 @@ Here are the placeholders you will use in this lab:
 | Placeholder | What to Replace It With | Example |
 |-------------|------------------------|---------|
 | `<YOUR_PROFILE_NAME>` | Your AWS CLI profile name from Lab 1A | `AdministratorAccess-123456789012` |
-| `<DETECTOR_ID>` | The detector ID returned when you enable GuardDuty (Step 4) | `a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6` |
-| `<FINDING_ID>` | A finding ID from the list-findings output (Step 6) | `12abc34d567e8fa901bc2d34e56789f0` |
+| `<DETECTOR_ID>` | The detector ID returned when you enable GuardDuty (Step 3) | `a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6` |
+| `<FINDING_ID>` | A finding ID from the list-findings output (Step 5) | `12abc34d567e8fa901bc2d34e56789f0` |
 
 ---
 
@@ -103,45 +104,7 @@ aws sts get-caller-identity
 
 ---
 
-### Step 2: Create Your Project Folder
-
-**Step 2a: Create the folder**
-
-**Windows (PowerShell):**
-
-📋 Copy and paste:
-
-```powershell
-mkdir ~\Desktop\workshop-lab-4a
-cd ~\Desktop\workshop-lab-4a
-```
-
-**macOS / Linux:**
-
-📋 Copy and paste:
-
-```bash
-mkdir ~/Desktop/workshop-lab-4a
-cd ~/Desktop/workshop-lab-4a
-```
-
-> **What does this do?** Creates a new folder on your Desktop called `workshop-lab-4a` and moves your terminal into that folder.
-
-**Step 2b: Verify you're in the right folder**
-
-📋 Copy and paste:
-
-```
-pwd
-```
-
-**✅ You should see** a path ending in `workshop-lab-4a` (e.g., `C:\Users\YourName\Desktop\workshop-lab-4a` on Windows or `/Users/YourName/Desktop/workshop-lab-4a` on Mac).
-
-> **💡 From now on, save ALL files you create in this lab to this folder.** When the lab says "save the file," save it here.
-
----
-
-### Step 3: Check If GuardDuty Is Already Enabled
+### Step 2: Check If GuardDuty Is Already Enabled
 
 Before enabling GuardDuty, check if it is already active in your account (you may have enabled it in a previous lab or it may have been enabled by your organization).
 
@@ -151,13 +114,13 @@ Before enabling GuardDuty, check if it is already active in your account (you ma
 aws guardduty list-detectors --region us-east-1
 ```
 
-**✅ If you see** `"DetectorIds": []` (empty list) — GuardDuty is NOT enabled. Continue to Step 4.
+**✅ If you see** `"DetectorIds": []` (empty list) — GuardDuty is NOT enabled. Continue to Step 3.
 
-**✅ If you see** a detector ID in the list — GuardDuty is already enabled. Write down that detector ID and skip to Step 5.
+**✅ If you see** a detector ID in the list — GuardDuty is already enabled. Write down that detector ID and skip to Step 4.
 
 ---
 
-### Step 4: Enable GuardDuty
+### Step 3: Enable GuardDuty
 
 📋 Copy and paste:
 
@@ -181,7 +144,7 @@ aws guardduty create-detector --enable --region us-east-1
 
 ---
 
-### Step 5: Generate Sample Findings
+### Step 4: Generate Sample Findings
 
 Now you will generate sample findings that simulate real-world threats. These are safe — they do not indicate actual attacks on your account.
 
@@ -203,7 +166,7 @@ aws guardduty create-sample-findings --detector-id <DETECTOR_ID> --finding-types
 
 ---
 
-### Step 6: List Findings
+### Step 5: List Findings
 
 📋 Copy and paste, **replacing `<DETECTOR_ID>`**:
 
@@ -229,7 +192,7 @@ aws guardduty list-findings --detector-id <DETECTOR_ID> --region us-east-1
 
 ---
 
-### Step 7: Get Finding Details
+### Step 6: Get Finding Details
 
 Now retrieve the full details of one finding to understand what GuardDuty reports.
 
@@ -254,13 +217,13 @@ aws guardduty get-findings --detector-id <DETECTOR_ID> --finding-ids <FINDING_ID
 
 > **💡 Understanding the output:**
 > - **Type** — The category of threat (e.g., UnauthorizedAccess, Recon, CryptoCurrency)
-> - **Severity** — A number from 0.1 to 8.9 indicating urgency
+> - **Severity** — A number from 1.0 to 8.9 indicating urgency
 > - **Title** — A human-readable summary of what happened
 > - **Description** — Detailed explanation of the finding
 
 ---
 
-### Step 8: View All Findings with Severity
+### Step 7: View All Findings with Severity
 
 Let's see all findings at once with their severity levels.
 
@@ -270,18 +233,28 @@ Let's see all findings at once with their severity levels.
 aws guardduty list-findings --detector-id <DETECTOR_ID> --region us-east-1 --query "FindingIds" --output text
 ```
 
-This gives you all finding IDs. Now get details for multiple findings:
+This gives you all finding IDs. Now get details for all of them at once. Copy and paste the version for your operating system, **replacing `<DETECTOR_ID>`** in each line:
 
-📋 Copy and paste, **replacing `<DETECTOR_ID>`** (this retrieves details for up to 50 findings):
+**macOS / Linux:**
 
+```bash
+aws guardduty get-findings --detector-id <DETECTOR_ID> --finding-ids $(aws guardduty list-findings --detector-id <DETECTOR_ID> --region us-east-1 --query "FindingIds[]" --output text) --region us-east-1 --query "Findings[].{Type:Type,Severity:Severity,Title:Title}" --output table
 ```
-aws guardduty get-findings --detector-id <DETECTOR_ID> --finding-ids $((aws guardduty list-findings --detector-id <DETECTOR_ID> --region us-east-1 --query "FindingIds[]" --output text).Split()) --region us-east-1 --query "Findings[].{Type:Type,Severity:Severity,Title:Title}" --output table
+
+**Windows (PowerShell):**
+
+```powershell
+$ids = (aws guardduty list-findings --detector-id <DETECTOR_ID> --region us-east-1 --query "FindingIds[]" --output text) -split "\s+" | Where-Object { $_ }
+aws guardduty get-findings --detector-id <DETECTOR_ID> --finding-ids $ids --region us-east-1 --query "Findings[].{Type:Type,Severity:Severity,Title:Title}" --output table
 ```
+
+> **What does this do?** The first part lists all your finding IDs; the second passes them into `get-findings` so you get one table covering every finding. (On Windows, the IDs are captured into `$ids` first, then passed in.)
+
 **✅ You should see** a table showing multiple findings with their severity levels.
 
 ---
 
-### Step 9: Console Checkpoint
+### Step 8: Console Checkpoint
 
 Let's see the findings in the AWS Console with the visual severity indicators:
 
@@ -299,7 +272,7 @@ Let's see the findings in the AWS Console with the visual severity indicators:
 
 ---
 
-### Step 10: Understanding Severity Levels
+### Step 9: Understanding Severity Levels
 
 Here is how GuardDuty categorizes threat severity:
 
@@ -357,8 +330,8 @@ The Security Specialty exam tests GuardDuty heavily. You need to understand:
 
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
-| `A]detector already exists for the current account` | GuardDuty is already enabled in this region | Run `aws guardduty list-detectors --region us-east-1` to get the existing detector ID and use that |
-| `create-sample-findings` returns an error | The detector ID may be wrong | Double-check the detector ID from Step 4 or Step 3 |
+| `A detector already exists for the current account` | GuardDuty is already enabled in this region | Run `aws guardduty list-detectors --region us-east-1` to get the existing detector ID and use that |
+| `create-sample-findings` returns an error | The detector ID may be wrong | Double-check the detector ID from Step 3 or Step 2 |
 | `list-findings` returns empty `FindingIds` | Sample findings may take a moment to generate | Wait 30 seconds and try again |
 | `get-findings` returns an error about finding IDs | The finding ID format is wrong | Make sure you copied the full finding ID (it is a long hex string with no dashes) |
 | Console shows no findings | You may be in the wrong region | Check that the console is set to **US East (N. Virginia) us-east-1** in the top-right corner |
@@ -367,7 +340,8 @@ The Security Specialty exam tests GuardDuty heavily. You need to understand:
 
 ## Cleanup
 
-**⚠️ Important:** You MUST delete the GuardDuty detector to avoid charges after your 30-day free trial ends. Follow these steps.
+>[!CAUTION]
+>**⚠️** You MUST delete the GuardDuty detector to avoid charges after your 30-day free trial ends. Follow these steps.
 
 ### Step 1: Delete the GuardDuty Detector
 
@@ -388,24 +362,6 @@ aws guardduty list-detectors --region us-east-1
 ```
 
 **✅ You should see** `"DetectorIds": []` (empty list) — confirming GuardDuty is disabled.
-
-### Step 3: Delete Local Files
-
-Remove the project folder:
-
-**Windows (PowerShell):**
-
-```powershell
-cd ~\Desktop
-Remove-Item -Recurse -Force ~\Desktop\workshop-lab-4a
-```
-
-**macOS / Linux:**
-
-```bash
-cd ~/Desktop
-rm -rf ~/Desktop/workshop-lab-4a
-```
 
 ---
 
