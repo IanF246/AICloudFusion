@@ -543,6 +543,8 @@ This lab covers several high-weight exam topics:
 >[!IMPORTANT]
 >**⚠️** Always clean up resources after completing a lab. Follow these steps in order.
 
+> **🔗 Continuing to the 4D sidequest?** 4D extends this exact pipeline — it inserts a Lambda function between EventBridge and SNS. If you're moving straight to 4D, **skip this cleanup for now and leave the GuardDuty detector, SNS topic, and EventBridge rule in place** — you'll reuse them there. Come back and run these steps after you finish 4D. (Reminder: leaving GuardDuty enabled past its trial carries the small ongoing cost noted at the top of this lab.)
+
 ### Step 1: Remove EventBridge Targets
 
 📋 Copy and paste:
