@@ -27,7 +27,7 @@ By the end of this lab, you will have built an automated security alerting pipel
 
 - ✅ Completed **Lab 1A** (AWS CLI installed and configured)
 - ✅ AWS CLI authenticated — run `aws sts get-caller-identity` and confirm it returns your account info
-- ✅ A text editor to create JSON files (VS Code, Notepad, or any editor)
+- ✅ **VS Code** installed (from Lab 1B) — any text editor works, but these labs assume VS Code
 - ✅ Access to an email inbox (you will need to confirm a subscription)
 
 ---
@@ -36,13 +36,13 @@ By the end of this lab, you will have built an automated security alerting pipel
 
 | Service | What It Is | Cost |
 |---------|-----------|------|
-| Amazon GuardDuty | Continuous threat detection | **30-day free trial**, then charges based on data analyzed |
+| Amazon GuardDuty | Continuous threat detection | **30-day free trial**, then usage-based (see note) |
 | Amazon EventBridge | Event routing service | Free for AWS service events |
 | Amazon SNS | Notification service | Free within 1,000 email notifications/month |
 
-**Estimated cost for this lab: $0.00**
+**Estimated cost for this lab: $0.00** (within the GuardDuty free trial; EventBridge and SNS stay within their free limits)
 
-**⚠️ Important:** You MUST delete the GuardDuty detector in the cleanup section to avoid charges after your 30-day free trial ends.
+**⚠️ Important:** Past the 30-day GuardDuty trial, the detector charges for the data it analyzes — roughly **$4.00 per million CloudTrail management events** plus **$1.00/GB** of VPC Flow Log + DNS log analysis (us-east-1), which on an idle learning account is about **a few cents to ~$1–2/month**. Small, but ongoing — so you **MUST** delete the detector in the cleanup section.
 
 ---
 
@@ -148,6 +148,16 @@ pwd
 
 > **💡 From now on, save ALL files you create in this lab to this folder.**
 
+**Step 2c: Open the folder in VS Code**
+
+📋 Copy and paste:
+
+```
+code .
+```
+
+> **What does this do?** This opens VS Code with `workshop-lab-4c` as its **file tree** on the left, so the JSON files you create in Steps 8, 9, and 11 land in the right place. (You set up the `code` command in Lab 1B — if you see `'code' is not recognized`, close and reopen your terminal, or revisit Lab 1B, Step 6.)
+
 ---
 
 ### Step 3: Check If GuardDuty Is Already Enabled
@@ -252,9 +262,9 @@ aws sns list-subscriptions-by-topic --topic-arn <TOPIC_ARN> --region us-east-1 -
 
 EventBridge needs permission to publish messages to your SNS topic. You must add a policy that allows the EventBridge service to call `sns:Publish`.
 
-**Step 8a:** Open your text editor and create a **new, empty file**.
+**Step 8a:** In the VS Code file tree, click the **New File** icon and name the file `sns-policy.json`.
 
-**Step 8b:** 📋 Copy and paste this entire block into the file, **replacing `<TOPIC_ARN>`** (2 places) and **`<YOUR_ACCOUNT_ID>`** (1 place):
+**Step 8b:** 📋 Copy and paste this entire block into it, **replacing `<TOPIC_ARN>`** (2 places) and **`<YOUR_ACCOUNT_ID>`** (1 place):
 
 ```json
 {
@@ -296,9 +306,9 @@ EventBridge needs permission to publish messages to your SNS topic. You must add
 > - `"AWS": "arn:aws:iam::123456789012:root"`
 > - `"Resource": "arn:aws:sns:us-east-1:123456789012:workshop-security-alerts"` (in both places)
 
-**Step 8c:** Save the file as `sns-policy.json` in your `workshop-lab-4c` folder on your Desktop.
+**Step 8c:** **Save** the file (**Ctrl+S** / **Cmd+S**). You should see `sns-policy.json` appear in the file tree.
 
-> **⚠️ Common mistakes:** Make sure you replaced `<TOPIC_ARN>` in BOTH places and `<YOUR_ACCOUNT_ID>` in 1 place.
+> **⚠️ Common mistake:** Make sure you replaced `<TOPIC_ARN>` in BOTH places and `<YOUR_ACCOUNT_ID>` in 1 place, and that the file is named exactly `sns-policy.json`.
 
 > **What does this file do?** It grants two permissions:
 > - **AllowAccountToManage** — your account can manage the topic (needed for cleanup)
@@ -320,9 +330,9 @@ aws sns set-topic-attributes --topic-arn <TOPIC_ARN> --attribute-name Policy --a
 
 Now you will define which GuardDuty findings should trigger an alert. You will match findings with severity >= 4 (medium and above).
 
-**Step 9a:** Open your text editor and create a **new, empty file**.
+**Step 9a:** In the VS Code file tree, create a **New File** named `eventbridge-rule.json`.
 
-**Step 9b:** 📋 Copy and paste this entire block into the file (no placeholders to replace):
+**Step 9b:** 📋 Copy and paste this entire block into it (no placeholders to replace):
 
 ```json
 {
@@ -334,7 +344,7 @@ Now you will define which GuardDuty findings should trigger an alert. You will m
 }
 ```
 
-**Step 9c:** Save the file as `eventbridge-rule.json` in your `workshop-lab-4c` folder on your Desktop.
+**Step 9c:** **Save** the file (**Ctrl+S** / **Cmd+S**).
 
 > **What does this file do?** It tells EventBridge: "Match any event that comes from GuardDuty, is a finding, and has a severity of 4 or higher." This means:
 > - **Low severity (1–3.9):** Ignored — no alert sent
@@ -375,18 +385,30 @@ aws events put-rule --name workshop-guardduty-alert --event-pattern file://event
 
 ### Step 11: Add the SNS Topic as the Target
 
-Now connect the rule to your SNS topic — when the rule matches a finding, it publishes to the topic, which sends you an email.
+Now connect the rule to your SNS topic — when the rule matches a finding, it publishes to the topic, which sends you an email. Passing this configuration inline is fiddly (the quoting differs between PowerShell and Bash and breaks easily), so you'll put it in a small file — the reliable, cross-platform way.
 
-📋 Copy and paste, **replacing `<TOPIC_ARN>`**:
+**Step 11a: Create the targets file**
+
+In the VS Code file tree, create a **New File** named `targets.json`. 📋 Copy and paste this into it, **replacing `<TOPIC_ARN>`**:
+
+```json
+[
+    {
+        "Id": "sns-target",
+        "Arn": "<TOPIC_ARN>"
+    }
+]
+```
+
+**Save** the file (**Ctrl+S** / **Cmd+S**).
+
+**Step 11b: Add the target to the rule**
+
+📋 Copy and paste:
 
 ```
-aws events put-targets --rule workshop-guardduty-alert --targets '[{\"Id\":\"sns-target\",\"Arn\":\"<TOPIC_ARN>\"}]' --region us-east-1
+aws events put-targets --rule workshop-guardduty-alert --targets file://targets.json --region us-east-1
 ```
-
-> **🔄 Example:**
-> ```
-> aws events put-targets --rule workshop-guardduty-alert --targets '[{\"Id\":\"sns-target\",\"Arn\":\"arn:aws:sns:us-east-1:123456789012:workshop-security-alerts\"}]' --region us-east-1
-> ```
 
 **✅ You should see** JSON output with `"FailedEntryCount": 0` — meaning the target was added successfully.
 
@@ -432,7 +454,7 @@ aws guardduty create-sample-findings --detector-id <DETECTOR_ID> --finding-types
 
 > **💡 What the email looks like:** The email contains raw JSON from the GuardDuty finding event. In a production environment, you would use a Lambda function between EventBridge and SNS to format the message into a human-readable alert with clear action items.
 
-Guardduty has a set behaviour regarding deduplication: If you do a second run (within 24hrs after cleanup), even though you deleted the detector and rebuilt everything, GuardDuty's backend will still have a recent record of that finding type for your account. When you call a create-sample-findings again with the same type, GuardDuty will treated it as an update to the existing finding (incrementing the count, updating the timestamp) rather than creating a new finding event. EventBridge only fires on new finding events, not on updates — so no email will be triggered.
+Guardduty has a set behaviour regarding deduplication: If you do a second run (within 24hrs after cleanup), even though you deleted the detector and rebuilt everything, GuardDuty's backend will still have a recent record of that finding type for your account. When you call create-sample-findings again with the same type, GuardDuty will treat it as an update to the existing finding (incrementing the count, updating the timestamp) rather than creating a new finding event. EventBridge only fires on new finding events, not on updates — so no email will be triggered.
 
 TLDR: GuardDuty deduplicates findings by type within a time window. This is by design to prevent alert fatigue — a single compromised resource triggering the same behavior 100 times generates one finding (updated), not 100 emails. In a real environment, you'd see the UpdatedAt and Count fields on the finding change, but only the initial detection fires through EventBridge.
 
@@ -518,7 +540,8 @@ This lab covers several high-weight exam topics:
 
 ## Cleanup
 
-**⚠️ Important:** Always clean up resources after completing a lab. Follow these steps in order.
+>[!IMPORTANT]
+>**⚠️** Always clean up resources after completing a lab. Follow these steps in order.
 
 ### Step 1: Remove EventBridge Targets
 
@@ -589,6 +612,8 @@ aws guardduty list-detectors --region us-east-1
 **✅ You should see** `"DetectorIds": []` (empty list).
 
 ### Step 7: Delete Local Files
+
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-4c` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
 
 Remove the project folder:
 
