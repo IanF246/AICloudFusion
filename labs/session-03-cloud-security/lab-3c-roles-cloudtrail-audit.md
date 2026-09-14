@@ -27,7 +27,7 @@ By the end of this lab, you will understand how real organizations implement rol
 - ✅ Completed **Lab 1A** (AWS CLI installed and configured)
 - ✅ Completed **Lab 3A** and **Lab 3B** (familiar with IAM users, policies, and groups)
 - ✅ AWS CLI authenticated — run `aws sts get-caller-identity` and confirm it returns your account info
-- ✅ A text editor to create JSON files (VS Code, Notepad, or any editor)
+- ✅ **VS Code** installed (from Lab 1B) — any text editor works, but these labs assume VS Code
 
 ---
 
@@ -37,9 +37,9 @@ By the end of this lab, you will understand how real organizations implement rol
 |---------|-----------|------|
 | CloudTrail | Audit logging for AWS actions | First active trail is Always Free |
 | IAM | Identity and Access Management | Always Free |
-| Amazon S3 | Storage for CloudTrail logs | 0.023 per GB |
+| Amazon S3 | Storage for CloudTrail logs | $0.023 per GB/month |
 
-**Estimated cost for this lab: $0.00** - As you would have already created buckets from previous labs.
+**Estimated cost for this lab: $0.00** — the first CloudTrail trail is free, and the logs bucket holds only a few small files and is deleted in cleanup.
 
 ---
 
@@ -100,7 +100,7 @@ export AWS_PROFILE="<YOUR_PROFILE_NAME>"
 ```
 aws sso login --profile <YOUR_PROFILE_NAME>
 ```
-This will open up browser for you to authenticate account.
+This opens a browser window for you to authenticate to your account.
 
 
 **Verify it works and get your Account ID.** 📋 Copy and paste:
@@ -153,6 +153,16 @@ pwd
 
 > **💡 From now on, save ALL files you create in this lab to this folder.**
 
+**Step 2c: Open the folder in VS Code**
+
+📋 Copy and paste:
+
+```
+code .
+```
+
+> **What does this do?** This opens VS Code with `workshop-lab-3c` as its **file tree** on the left. This lab creates several JSON policy files — opening the folder now means each one lands in the right place. (You set up the `code` command in Lab 1B — if you see `'code' is not recognized`, close and reopen your terminal, or revisit Lab 1B, Step 6.)
+
 ---
 
 ### Step 3: Create an S3 Bucket for CloudTrail Logs
@@ -182,9 +192,9 @@ make_bucket: <YOUR_BUCKET_NAME>
 
 CloudTrail needs permission to write log files to your bucket. You must add a bucket policy that explicitly allows the CloudTrail service to put objects in the bucket.
 
-**Step 4a:** Open your text editor and create a **new, empty file**.
+**Step 4a:** In the VS Code file tree, click the **New File** icon and name the file `cloudtrail-bucket-policy.json`.
 
-**Step 4b:** 📋 Copy and paste this entire block into the file, **replacing `<YOUR_BUCKET_NAME>`** (2 places) and **`<YOUR_ACCOUNT_ID>`** (1 place):
+**Step 4b:** 📋 Copy and paste this entire block into it, **replacing `<YOUR_BUCKET_NAME>`** (2 places) and **`<YOUR_ACCOUNT_ID>`** (1 place):
 
 ```json
 {
@@ -221,7 +231,7 @@ CloudTrail needs permission to write log files to your bucket. You must add a bu
 > - `"Resource": "arn:aws:s3:::jane-doe-cloudtrail-logs"`
 > - `"Resource": "arn:aws:s3:::jane-doe-cloudtrail-logs/AWSLogs/123456789012/*"`
 
-**Step 4c:** Save the file as `cloudtrail-bucket-policy.json` in your `workshop-lab-3c` folder on your Desktop.
+**Step 4c:** **Save** the file (**Ctrl+S** / **Cmd+S**). You should see `cloudtrail-bucket-policy.json` appear in the file tree.
 
 > **⚠️ Common mistakes:** Make sure you replaced `<YOUR_BUCKET_NAME>` in all 2 places and `<YOUR_ACCOUNT_ID>` in 1 place. The account ID must be exactly 12 digits with no dashes or spaces.
 
@@ -289,9 +299,9 @@ aws cloudtrail start-logging --name workshop-audit-trail
 
 Before creating roles, you need a **trust policy** that defines who can assume them. This policy allows any identity in your account to assume the roles.
 
-**Step 7a:** Open your text editor and create a **new, empty file**.
+**Step 7a:** In the VS Code file tree, click the **New File** icon and name the file `role-trust-policy.json`.
 
-**Step 7b:** 📋 Copy and paste this entire block into the file, **replacing `<YOUR_ACCOUNT_ID>`**:
+**Step 7b:** 📋 Copy and paste this entire block into it, **replacing `<YOUR_ACCOUNT_ID>`**:
 
 ```json
 {
@@ -314,7 +324,7 @@ Before creating roles, you need a **trust policy** that defines who can assume t
 > "AWS": "arn:aws:iam::123456789012:root"
 > ```
 
-**Step 7c:** Save the file as `role-trust-policy.json` in your `workshop-lab-3c` folder on your Desktop.
+**Step 7c:** **Save** the file (**Ctrl+S** / **Cmd+S**). You should see `role-trust-policy.json` appear in the file tree.
 
 > **⚠️ Common mistakes:** Make sure you replaced `<YOUR_ACCOUNT_ID>` with your 12-digit account number. The word `root` here does NOT mean the root user — it means "any authenticated identity in this account."
 
@@ -328,7 +338,7 @@ The developer role allows S3 and Lambda access but blocks IAM modifications (pre
 
 **Step 8a: Write the developer policy**
 
-Open your text editor and create a **new, empty file**. 📋 Copy and paste this entire block:
+In the VS Code file tree, create a **New File** named `developer-policy.json`. 📋 Copy and paste this entire block into it:
 
 ```json
 {
@@ -363,7 +373,7 @@ Open your text editor and create a **new, empty file**. 📋 Copy and paste this
 }
 ```
 
-Save the file as `developer-policy.json` in your `workshop-lab-3c` folder on your Desktop.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 > **What does this file do?** It gives the developer:
 > - **Full S3 access** — create buckets, upload files, read data
@@ -400,7 +410,7 @@ The auditor role allows reading CloudTrail logs and S3 data but blocks ALL modif
 
 **Step 9a: Write the auditor policy**
 
-Open your text editor and create a **new, empty file**. 📋 Copy and paste this entire block:
+In the VS Code file tree, create a **New File** named `auditor-policy.json`. 📋 Copy and paste this entire block into it:
 
 ```json
 {
@@ -436,7 +446,7 @@ Open your text editor and create a **new, empty file**. 📋 Copy and paste this
 }
 ```
 
-Save the file as `auditor-policy.json` in your `workshop-lab-3c` folder on your Desktop.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 > **What does this file do?** It gives the auditor:
 > - **CloudTrail read access** — can look up events, check trail status, and review logs
@@ -487,7 +497,7 @@ aws sts assume-role --role-arn arn:aws:iam::<YOUR_ACCOUNT_ID>:role/workshop-deve
         "AccessKeyId": "ASIA...",
         "SecretAccessKey": "...",
         "SessionToken": "...(very long string)...",
-        "Expiration": "2025-..."
+        "Expiration": "2026-..."
     },
     "AssumedRoleUser": {
         "Arn": "arn:aws:sts::<ACCOUNT_ID>:assumed-role/workshop-developer-role/dev-session"
@@ -550,7 +560,7 @@ The developer has full S3 access. Let's prove it by uploading a file to the Clou
 📋 Copy and paste, **replacing `<YOUR_BUCKET_NAME>`**:
 
 ```powershell
-"developer was here" | Out-File dev-test.txt
+"developer was here" | Out-File -Encoding utf8 dev-test.txt
 aws s3 cp dev-test.txt s3://<YOUR_BUCKET_NAME>/dev-test.txt
 ```
 
@@ -586,6 +596,22 @@ aws iam create-user --user-name hacker-attempt 2>&1
 **✅ You should see an error:** `An error occurred (AccessDenied)`. The developer CANNOT create IAM users. **Privilege escalation is blocked!**
 
 > **💡 Why this matters:** If a developer's credentials are stolen, the attacker cannot create new admin users, attach new policies, or escalate their access. The explicit Deny on IAM actions prevents this entire class of attack.
+
+---
+
+**Step 10f: Try to turn off the audit trail — should be DENIED ❌**
+
+A developer trying to hide their activity might attempt to stop CloudTrail from recording. Try it:
+
+📋 Copy and paste:
+
+```
+aws cloudtrail stop-logging --name workshop-audit-trail 2>&1
+```
+
+**✅ You should see an error:** `An error occurred (AccessDenied)`. The developer role has **no CloudTrail permissions**, so it cannot turn logging off. Every action it takes stays on the record — **it cannot cover its tracks.**
+
+> **⚠️ A caveat worth knowing:** the developer role here grants `s3:*`, which technically still allows deleting log *objects* from the CloudTrail bucket. In a real environment you would harden the log bucket separately — a bucket policy that denies deletes, S3 Object Lock or MFA-delete, CloudTrail log-file validation, or storing logs in a separate, locked-down account. Turning **logging itself** off, though, is firmly blocked here.
 
 ---
 
@@ -693,25 +719,44 @@ Now look at the audit trail. This shows recent API calls in your account.
 aws cloudtrail lookup-events --max-results 5 --query "Events[].{Time:EventTime,Name:EventName,User:Username}" --output table
 ```
 
-**✅ You should see** a table showing recent events, including actions from the developer role (like `PutObject` or `CreateUser` — the failed attempt is logged too!).
+**✅ You should see** a table of recent events, including the developer's activity — `PutObject` (the file upload), `CreateUser` (the privilege-escalation attempt), and the `AssumeRole` calls. Note that this summary table shows **that** each action happened, but **not** whether it succeeded or failed — you will confirm the failure next.
 
 > **💡 If the table is empty or shows very few events:** CloudTrail events take 5–15 minutes to appear. If you just completed the developer section, wait a few minutes and try again. This is normal behavior — CloudTrail is not real-time.
 
-> **💡 What you are seeing:** Every action in your AWS account is logged — successful AND failed. The auditor can see that the developer uploaded a file (PutObject) and attempted to create a user (CreateUser — which was denied). This is how security teams investigate incidents.
+> **💡 What you are seeing:** Every action in your AWS account is logged — successful AND failed. The table above proves the developer's `CreateUser` attempt was *recorded*. But to see that it was *denied*, you have to open the event's full detail, where the error code lives.
+
+**Now confirm the CreateUser attempt was denied.** 📋 Copy and paste:
+
+```
+aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=CreateUser --max-results 1 --query "Events[0].CloudTrailEvent" --output text
+```
+
+This prints the full CloudTrail record for the most recent `CreateUser` event as one long block of JSON. Read through it and look for these two fields:
+
+```
+"errorCode": "AccessDenied",
+"errorMessage": "User: arn:aws:sts::...:assumed-role/workshop-developer-role/dev-session is not authorized to perform: iam:CreateUser ... with an explicit deny ..."
+```
+
+**✅ That `errorCode` is the proof.** CloudTrail recorded not just *that* the developer tried to create a user, but that the attempt was **blocked** — and exactly why. This is what a security team looks for when investigating suspicious activity.
+
+> **💡 Why wasn't the failure in the first table?** The summary table only projects a few top-level fields (event name, time, user). Whether an action succeeded or failed lives inside each event's full record — the `CloudTrailEvent` field — which is why this second command dumps the whole thing.
+
+> **💡 If the command returns nothing:** the `CreateUser` event may not have propagated yet (CloudTrail lag of 5–15 minutes). Wait a few minutes and try again.
 
 ---
 
-**Step 12e: Test modification — should be DENIED ❌**
+**Step 12e: Try to tamper with the evidence — should be DENIED ❌**
 
-The auditor should be able to see everything but change nothing.
+The auditor can see everything but must not be able to change anything — including destroying evidence. Try to delete the file the developer uploaded earlier.
 
-📋 Copy and paste:
+📋 Copy and paste, **replacing `<YOUR_BUCKET_NAME>`**:
 
 ```
-aws iam create-user --user-name auditor-hack 2>&1
+aws s3 rm s3://<YOUR_BUCKET_NAME>/dev-test.txt 2>&1
 ```
 
-**✅ You should see an error:** `An error occurred (AccessDenied)`. The auditor CANNOT make changes. **Separation of duties is enforced!**
+**✅ You should see an error:** `delete failed` with `An error occurred (AccessDenied)`. The auditor can *read* the data and the logs, but the explicit Deny blocks any write or delete — so it **cannot alter or destroy evidence**. This is the other half of separation of duties: **the investigator can look, but never touch.**
 
 ---
 
@@ -887,6 +932,8 @@ aws s3 rb s3://<YOUR_BUCKET_NAME>
 **✅ You should see** `remove_bucket: <YOUR_BUCKET_NAME>`.
 
 ### Step 6: Delete Local Files
+
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-3c` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
 
 Remove the project folder:
 
