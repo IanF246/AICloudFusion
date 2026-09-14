@@ -162,6 +162,8 @@ code .
 
 ---
 
+> **🔁 Heads-up: Steps 3–5 repeat the CloudTrail setup from Lab 3C.** Creating the log bucket, applying the bucket policy, and starting a multi-region trail are the same steps you did in 3C — included here so this lab stands on its own. If you're comfortable with them, move through them quickly; the real focus of this lab is the **investigation** in Steps 6–9.
+
 ### Step 3: Create an S3 Bucket for CloudTrail Logs
 
 CloudTrail needs an S3 bucket to store its log files.
@@ -254,11 +256,7 @@ aws s3api put-bucket-policy --bucket <TRAIL_BUCKET_NAME> --policy file://cloudtr
 aws cloudtrail create-trail --name workshop-investigation-trail --s3-bucket-name <TRAIL_BUCKET_NAME> --is-multi-region-trail
 ```
 
-**What does this do?**
-- `create-trail` — creates a new CloudTrail trail
-- `--name workshop-investigation-trail` — the name of your trail
-- `--s3-bucket-name` — where to store the log files
-- `--is-multi-region-trail` — records activity from ALL AWS regions
+> **Recap:** this creates a multi-region trail named `workshop-investigation-trail` that delivers logs to your bucket (same flags as 3C — see that lab for the per-flag breakdown).
 
 **✅ You should see** JSON output with the trail details, including `"Name": "workshop-investigation-trail"`.
 
@@ -347,6 +345,8 @@ aws iam create-access-key --user-name suspicious-user
 **Step 6e: Become the attacker — switch to the suspicious user's credentials**
 
 You will now operate as the backdoor user, to see what an attacker holding these stolen keys would try.
+
+> **💡 Contrast with Lab 3C:** in 3C you switched identity with `assume-role`, which issues **temporary** credentials that expire in about an hour (the secure, modern pattern). Here the attacker uses **long-lived IAM user access keys** — static credentials that keep working until someone deletes them. These are exactly the kind of credentials attackers steal, which is why roles are preferred over user access keys in the real world.
 
 **Windows (PowerShell):**
 
