@@ -75,8 +75,8 @@ Here are the placeholders you will use in this lab:
 | Placeholder | What to Replace It With | Example |
 |-------------|------------------------|---------|
 | `<YOUR_PROFILE_NAME>` | Your AWS CLI profile name from Lab 1A | `AdministratorAccess-123456789012` |
-| `<KEY_ID>` | The Access Key ID returned when you create the access key (Step 4) | `AKIAIOSFODNN7EXAMPLE` |
-| `<SECRET_KEY>` | The Secret Access Key returned when you create the access key (Step 4) | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
+| `<KEY_ID>` | The Access Key ID returned when you create the access key (Step 3) | `AKIAIOSFODNN7EXAMPLE` |
+| `<SECRET_KEY>` | The Secret Access Key returned when you create the access key (Step 3) | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
 
 ---
 
@@ -108,45 +108,7 @@ aws sts get-caller-identity
 
 ---
 
-### Step 2: Create Your Project Folder
-
-**Step 2a: Create the folder**
-
-**Windows (PowerShell):**
-
-📋 Copy and paste:
-
-```powershell
-mkdir ~\Desktop\workshop-lab-5a
-cd ~\Desktop\workshop-lab-5a
-```
-
-**macOS / Linux:**
-
-📋 Copy and paste:
-
-```bash
-mkdir ~/Desktop/workshop-lab-5a
-cd ~/Desktop/workshop-lab-5a
-```
-
-> **What does this do?** Creates a new folder on your Desktop called `workshop-lab-5a` and moves your terminal into that folder.
-
-**Step 2b: Verify you're in the right folder**
-
-📋 Copy and paste:
-
-```
-pwd
-```
-
-**✅ You should see** a path ending in `workshop-lab-5a` (e.g., `C:\Users\YourName\Desktop\workshop-lab-5a` on Windows or `/Users/YourName/Desktop/workshop-lab-5a` on Mac).
-
-> **💡 From now on, save ALL files you create in this lab to this folder.** When the lab says "save the file," save it here.
-
----
-
-### Step 3: Create the Compromised User
+### Step 2: Create the Compromised User
 
 Create an IAM user that simulates a developer whose credentials were stolen.
 
@@ -162,7 +124,7 @@ aws iam create-user --user-name compromised-user
 
 ---
 
-### Step 4: Create Access Keys for the User
+### Step 3: Create Access Keys for the User
 
 📋 Copy and paste:
 
@@ -192,7 +154,7 @@ aws iam create-access-key --user-name compromised-user
 
 ---
 
-### Step 5: Verify the Key Is Active
+### Step 4: Verify the Key Is Active
 
 📋 Copy and paste:
 
@@ -216,7 +178,7 @@ The key is **Active** — it can be used to authenticate API calls.
 
 ---
 
-### Step 6: 🚨 Simulate Detection
+### Step 5: 🚨 Simulate Detection
 
 >[!IMPORTANT]
 > **SCENARIO:** You receive an urgent alert from your security team:
@@ -229,11 +191,11 @@ The clock is ticking. Every second the key remains active, an attacker could be 
 
 ---
 
-### Step 7: Containment — Deactivate the Key
+### Step 6: Containment — Deactivate the Key
 
 **This is the most critical step in incident response: stop the bleeding.**
 
-📋 Copy and paste, **replacing `<KEY_ID>`** with the AccessKeyId from Step 4:
+📋 Copy and paste, **replacing `<KEY_ID>`** with the AccessKeyId from Step 3:
 
 ```
 aws iam update-access-key --user-name compromised-user --access-key-id <KEY_ID> --status Inactive
@@ -245,7 +207,7 @@ aws iam update-access-key --user-name compromised-user --access-key-id <KEY_ID> 
 
 ---
 
-### Step 8: Verify the Key Is Now Inactive
+### Step 7: Verify the Key Is Now Inactive
 
 📋 Copy and paste:
 
@@ -269,15 +231,15 @@ The key is now **Inactive**. The attacker is locked out.
 
 ---
 
-### Step 9: Test That the Key No Longer Works
+### Step 8: Test That the Key No Longer Works
 
 Let's prove that the deactivated key cannot authenticate. Set the compromised credentials as environment variables and try to use them.
 
-**Step 9a: Set the compromised credentials**
+**Step 8a: Set the compromised credentials**
 
 **Windows (PowerShell):**
 
-📋 Copy and paste, **replacing the placeholders** with the values from Step 4:
+📋 Copy and paste, **replacing the placeholders** with the values from Step 3:
 
 ```powershell
 $env:AWS_ACCESS_KEY_ID="<KEY_ID>"
@@ -288,7 +250,7 @@ Remove-Item Env:\AWS_PROFILE
 
 **macOS / Linux:**
 
-📋 Copy and paste, **replacing the placeholders** with the values from Step 4:
+📋 Copy and paste, **replacing the placeholders** with the values from Step 3:
 
 ```bash
 export AWS_ACCESS_KEY_ID="<KEY_ID>"
@@ -297,7 +259,7 @@ export AWS_DEFAULT_REGION="us-east-1"
 unset AWS_PROFILE
 ```
 
-**Step 9b: Try to authenticate with the deactivated key**
+**Step 8b: Try to authenticate with the deactivated key**
 
 📋 Copy and paste:
 
@@ -315,7 +277,7 @@ An error occurred (InvalidClientTokenId) when calling the GetCallerIdentity oper
 
 ---
 
-### Step 10: Switch Back to Admin Credentials
+### Step 9: Switch Back to Admin Credentials
 
 **⚠️ Important:** You must clear the compromised credentials and restore your admin profile before continuing.
 
@@ -353,11 +315,11 @@ aws sts get-caller-identity
 
 ---
 
-### Step 11: Eradication — Delete the Key Entirely
+### Step 10: Eradication — Delete the Key Entirely
 
 Now that you have confirmed the compromise is real (not a false alarm), permanently delete the key.
 
-📋 Copy and paste, **replacing `<KEY_ID>`** with the AccessKeyId from Step 4:
+📋 Copy and paste, **replacing `<KEY_ID>`** with the AccessKeyId from Step 3:
 
 ```
 aws iam delete-access-key --user-name compromised-user --access-key-id <KEY_ID>
@@ -376,7 +338,7 @@ aws iam delete-access-key --user-name compromised-user --access-key-id <KEY_ID>
 
 ---
 
-### Step 12: Console Checkpoint
+### Step 11: Console Checkpoint
 
 Let's verify the eradication in the AWS Console:
 
@@ -425,16 +387,17 @@ The Security Specialty exam has an entire domain on incident response. You need 
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
 | `An error occurred (EntityAlreadyExists)` when creating the user | The user already exists from a previous attempt | Delete it first: `aws iam delete-user --user-name compromised-user` then try again |
-| `An error occurred (NoSuchEntity)` when deactivating the key | Wrong key ID or wrong username | Double-check the AccessKeyId from Step 4 and make sure you are using `compromised-user` |
-| `get-caller-identity` still shows admin after setting env vars | `AWS_PROFILE` is overriding the access keys | Make sure you removed `AWS_PROFILE` (Step 9a includes this) |
-| `get-caller-identity` still shows compromised-user after Step 10 | Env vars were not cleared | Run the commands in Step 10 again. Close and reopen your terminal if needed. |
+| `An error occurred (NoSuchEntity)` when deactivating the key | Wrong key ID or wrong username | Double-check the AccessKeyId from Step 3 and make sure you are using `compromised-user` |
+| `get-caller-identity` still shows admin after setting env vars | `AWS_PROFILE` is overriding the access keys | Make sure you removed `AWS_PROFILE` (Step 8a includes this) |
+| `get-caller-identity` still shows compromised-user after Step 9 | Env vars were not cleared | Run the commands in Step 9 again. Close and reopen your terminal if needed. |
 | Cannot delete user in cleanup — "cannot delete entity with attached policies" | The user has policies attached | Delete policies first: `aws iam delete-user-policy --user-name compromised-user --policy-name <POLICY_NAME>` |
 
 ---
 
 ## Cleanup
 
-**⚠️ Important:** Always clean up resources after completing a lab. Follow these steps in order.
+>[!IMPORTANT]
+>**⚠️** Always clean up resources after completing a lab. Follow these steps in order.
 
 ### Step 1: Delete the IAM User
 
@@ -446,30 +409,12 @@ aws iam delete-user --user-name compromised-user
 
 **✅ No output means success.**
 
-> **💡 If you get an error** saying the user has access keys, you may have skipped Step 11. Delete the key first:
+> **💡 If you get an error** saying the user has access keys, you may have skipped Step 10. Delete the key first:
 > ```
 > aws iam list-access-keys --user-name compromised-user
 > aws iam delete-access-key --user-name compromised-user --access-key-id <KEY_ID>
 > aws iam delete-user --user-name compromised-user
 > ```
-
-### Step 2: Delete Local Files
-
-Remove the project folder:
-
-**Windows (PowerShell):**
-
-```powershell
-cd ~\Desktop
-Remove-Item -Recurse -Force ~\Desktop\workshop-lab-5a
-```
-
-**macOS / Linux:**
-
-```bash
-cd ~/Desktop
-rm -rf ~/Desktop/workshop-lab-5a
-```
 
 ---
 
