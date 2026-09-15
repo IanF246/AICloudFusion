@@ -12,7 +12,7 @@
 
 In this lab, you will:
 
-1. **Understand CloudTrail Event History** — the always-on, 90-day audit log you'll investigate with (no trail setup required)
+1. **Set up CloudTrail** — create a trail that records all API activity to an S3 bucket
 2. **Generate suspicious activity** — simulate actions an attacker might take
 3. **Investigate with CloudTrail** — query the audit log to find out what happened
 4. **Prove immutability** — demonstrate that even deleted users leave a permanent audit trail
@@ -25,6 +25,7 @@ By the end of this lab, you will understand how CloudTrail provides an immutable
 
 - ✅ Completed **Lab 1A** (AWS CLI installed and configured)
 - ✅ AWS CLI authenticated — run `aws sts get-caller-identity` and confirm it returns your account info
+- ✅ **VS Code** installed (from Lab 1B) — any text editor works, but these labs assume VS Code
 
 ---
 
@@ -32,11 +33,17 @@ By the end of this lab, you will understand how CloudTrail provides an immutable
 
 | Service | What It Is | Cost |
 |---------|-----------|------|
+| CloudTrail | Audit logging for AWS actions | First active trail is Always Free |
+| Amazon S3 | Storage for CloudTrail logs | $0.023 per GB/month |
 | IAM | Identity and Access Management | Always Free |
-| Amazon S3 | Cloud storage (evidence bucket) | ~$0.00 (one tiny file, deleted in cleanup) |
-| CloudTrail Event History | 90-day management-event history | Always Free (always on — no trail needed) |
 
-**Estimated cost for this lab: $0.00** — this lab creates **no trail**; it investigates using the always-on Event History. The only resource created is a small evidence bucket, deleted in cleanup.
+**Estimated cost for this lab: $0.00** — the buckets hold only a few tiny files and are deleted in cleanup. Your **first** CloudTrail trail is free, so make sure the trail from Lab 3C has already been deleted (a second active trail would start incurring charges).
+
+This command lists any existing trails:
+```
+aws cloudtrail describe-trails --query "trailList[].Name" --region us-east-1
+```
+If it returns `[]`, there are none active — you're good to go.
 
 ---
 
@@ -70,9 +77,10 @@ Here are the placeholders you will use in this lab:
 |-------------|------------------------|---------|
 | `<YOUR_PROFILE_NAME>` | Your AWS CLI profile name from Lab 1A | `AdministratorAccess-123456789012` |
 | `<YOUR_ACCOUNT_ID>` | Your 12-digit AWS account ID (from `aws sts get-caller-identity`) | `123456789012` |
+| `<TRAIL_BUCKET_NAME>` | A globally unique S3 bucket name for CloudTrail logs | `jane-doe-lab4b-trail-logs` |
 | `<EVIDENCE_BUCKET_NAME>` | A globally unique S3 bucket name for the "evidence" bucket | `jane-doe-lab4b-evidence` |
-| `<ACCESS_KEY_ID>` | The access key ID of the suspicious user (from Step 3d) | `AKIA...` |
-| `<SECRET_ACCESS_KEY>` | The secret access key of the suspicious user (from Step 3d) | `wJalr...` |
+| `<ACCESS_KEY_ID>` | The access key ID of the suspicious user (from Step 6d) | `AKIA...` |
+| `<SECRET_ACCESS_KEY>` | The secret access key of the suspicious user (from Step 6d) | `wJalr...` |
 
 ---
 
@@ -142,17 +150,135 @@ pwd
 
 > **💡 From now on, save ALL files you create in this lab to this folder.**
 
-> **🔎 No trail setup needed for this lab.** This investigation uses the AWS CLI's `aws cloudtrail lookup-events`, which reads CloudTrail's **Event History** — an always-on, 90-day record of **management events** that exists in every account with no trail required. So you can jump straight into simulating and investigating the incident. (If you completed Lab 3C, your `workshop-security-trail` is also durably archiving these events to S3 in the background — but this lab doesn't depend on it.)
->
-> **The limitation you'll hit next session:** Event History covers *management* events (creating users, listing buckets) but **not** *data* events (a file actually being downloaded). Capturing those needs a configured trail — exactly what you'll set up in **Lab 5B** to investigate a data-exfiltration breach. For this lab, management events are enough to reconstruct the attacker's footprints.
+**Step 2c: Open the folder in VS Code**
 
-### Step 3: Generate Suspicious Activity
+📋 Copy and paste:
+
+```
+code .
+```
+
+> **What does this do?** This opens VS Code with `workshop-lab-4b` as its **file tree** on the left, so the policy file you create in Step 4 lands in the right place. (You set up the `code` command in Lab 1B — if you see `'code' is not recognized`, close and reopen your terminal, or revisit Lab 1B, Step 6.)
+
+---
+
+> **🔁 Heads-up: Steps 3–5 repeat the CloudTrail setup from Lab 3C.** Creating the log bucket, applying the bucket policy, and starting a multi-region trail are the same steps you did in 3C — included here so this lab stands on its own. If you're comfortable with them, move through them quickly; the real focus of this lab is the **investigation** in Steps 6–9.
+
+### Step 3: Create an S3 Bucket for CloudTrail Logs
+
+CloudTrail needs an S3 bucket to store its log files.
+
+📋 Copy and paste this command, **replacing `<TRAIL_BUCKET_NAME>`**:
+
+```
+aws s3 mb s3://<TRAIL_BUCKET_NAME> --region us-east-1
+```
+
+> **🔄 Example:**
+> ```
+> aws s3 mb s3://jane-doe-lab4b-trail-logs --region us-east-1
+> ```
+
+**✅ You should see:**
+
+```
+make_bucket: <TRAIL_BUCKET_NAME>
+```
+
+---
+
+### Step 4: Write and Apply the CloudTrail Bucket Policy
+
+CloudTrail needs permission to write log files to your bucket. You must add a bucket policy that allows the CloudTrail service to put objects in the bucket.
+
+**Step 4a:** In the VS Code file tree, click the **New File** icon and name the file `cloudtrail-bucket-policy.json`.
+
+**Step 4b:** 📋 Copy and paste this entire block into it, **replacing `<TRAIL_BUCKET_NAME>`** (3 places) and **`<YOUR_ACCOUNT_ID>`** (1 place):
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AWSCloudTrailAclCheck",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "cloudtrail.amazonaws.com"
+            },
+            "Action": "s3:GetBucketAcl",
+            "Resource": "arn:aws:s3:::<TRAIL_BUCKET_NAME>"
+        },
+        {
+            "Sid": "AWSCloudTrailWrite",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "cloudtrail.amazonaws.com"
+            },
+            "Action": "s3:PutObject",
+            "Resource": "arn:aws:s3:::<TRAIL_BUCKET_NAME>/AWSLogs/<YOUR_ACCOUNT_ID>/*",
+            "Condition": {
+                "StringEquals": {
+                    "s3:x-amz-acl": "bucket-owner-full-control"
+                }
+            }
+        }
+    ]
+}
+```
+
+> **🔄 Example:** If your bucket is `jane-doe-lab4b-trail-logs` and your account ID is `123456789012`:
+> - `"Resource": "arn:aws:s3:::jane-doe-lab4b-trail-logs"`
+> - `"Resource": "arn:aws:s3:::jane-doe-lab4b-trail-logs/AWSLogs/123456789012/*"`
+
+**Step 4c:** **Save** the file (**Ctrl+S** / **Cmd+S**). You should see `cloudtrail-bucket-policy.json` appear in the file tree.
+
+> **⚠️ Common mistakes:** Make sure you replaced `<TRAIL_BUCKET_NAME>` in all 3 places and `<YOUR_ACCOUNT_ID>` in 1 place. The account ID must be exactly 12 digits with no dashes or spaces.
+
+**Step 4d: Apply the bucket policy**
+
+📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
+
+```
+aws s3api put-bucket-policy --bucket <TRAIL_BUCKET_NAME> --policy file://cloudtrail-bucket-policy.json
+```
+
+**✅ No output means success.**
+
+---
+
+### Step 5: Create and Start the CloudTrail Trail
+
+**Step 5a: Create the trail**
+
+📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
+
+```
+aws cloudtrail create-trail --name workshop-investigation-trail --s3-bucket-name <TRAIL_BUCKET_NAME> --is-multi-region-trail
+```
+
+> **Recap:** this creates a multi-region trail named `workshop-investigation-trail` that delivers logs to your bucket (same flags as 3C — see that lab for the per-flag breakdown).
+
+**✅ You should see** JSON output with the trail details, including `"Name": "workshop-investigation-trail"`.
+
+**Step 5b: Start logging**
+
+📋 Copy and paste:
+
+```
+aws cloudtrail start-logging --name workshop-investigation-trail
+```
+
+**✅ No output means success.** CloudTrail is now recording every API call in your account.
+
+---
+
+### Step 6: Generate Suspicious Activity
 
 Now you will simulate actions that a suspicious user might take. Later, you will use CloudTrail to investigate what happened — like a forensic analyst would after a security incident.
 
 > **💡 Scenario:** Imagine you are a security analyst. You have been told that a "suspicious-user" was created in the account, did some things, and then was deleted. Your job is to figure out what happened using CloudTrail.
 
-**Step 3a: Create an "evidence" S3 bucket**
+**Step 6a: Create an "evidence" S3 bucket**
 
 📋 Copy and paste, **replacing `<EVIDENCE_BUCKET_NAME>`**:
 
@@ -167,7 +293,7 @@ aws s3 mb s3://<EVIDENCE_BUCKET_NAME> --region us-east-1
 
 **✅ You should see:** `make_bucket: <EVIDENCE_BUCKET_NAME>`
 
-**Step 3b: Upload a file to the evidence bucket**
+**Step 6b: Upload a file to the evidence bucket**
 
 **Windows (PowerShell):**
 
@@ -189,7 +315,7 @@ aws s3 cp sensitive-data.txt s3://<EVIDENCE_BUCKET_NAME>/sensitive-data.txt
 
 **✅ You should see:** `upload: ./sensitive-data.txt to s3://<EVIDENCE_BUCKET_NAME>/sensitive-data.txt`
 
-**Step 3c: Create a suspicious IAM user**
+**Step 6c: Create a suspicious IAM user**
 
 📋 Copy and paste:
 
@@ -199,7 +325,7 @@ aws iam create-user --user-name suspicious-user
 
 **✅ You should see** JSON output with `"UserName": "suspicious-user"`.
 
-**Step 3d: Create access keys for the suspicious user**
+**Step 6d: Create access keys for the suspicious user**
 
 📋 Copy and paste:
 
@@ -216,7 +342,7 @@ aws iam create-access-key --user-name suspicious-user
 >
 > ⚠️ The SecretAccessKey is shown **only once**.
 
-**Step 3e: Become the attacker — switch to the suspicious user's credentials**
+**Step 6e: Become the attacker — switch to the suspicious user's credentials**
 
 You will now operate as the backdoor user, to see what an attacker holding these stolen keys would try.
 
@@ -224,7 +350,7 @@ You will now operate as the backdoor user, to see what an attacker holding these
 
 **Windows (PowerShell):**
 
-📋 Copy and paste, **replacing the placeholders** with the values from Step 3d:
+📋 Copy and paste, **replacing the placeholders** with the values from Step 6d:
 
 ```powershell
 $env:AWS_ACCESS_KEY_ID="<ACCESS_KEY_ID>"
@@ -235,7 +361,7 @@ Remove-Item Env:\AWS_PROFILE
 
 **macOS / Linux:**
 
-📋 Copy and paste, **replacing the placeholders** with the values from Step 3d:
+📋 Copy and paste, **replacing the placeholders** with the values from Step 6d:
 
 ```bash
 export AWS_ACCESS_KEY_ID="<ACCESS_KEY_ID>"
@@ -252,7 +378,7 @@ aws sts get-caller-identity
 
 **✅ You should see** `suspicious-user` in the output — you are now operating as the attacker.
 
-**Step 3f: Probe the account (these attempts are DENIED — but logged)**
+**Step 6f: Probe the account (these attempts are DENIED — but logged)**
 
 The suspicious user has no permissions, so every command below fails with `AccessDenied`. That is exactly the point: **CloudTrail records the failed attempts anyway**, complete with the attacker's identity and IP address. 📋 Copy and paste each one, **replacing `<EVIDENCE_BUCKET_NAME>`** in the second:
 
@@ -270,7 +396,7 @@ aws iam list-users 2>&1
 
 **✅ You should see** `An error occurred (AccessDenied)` for each — the attacker tried to enumerate your buckets, probe the confidential bucket's permissions, and list other users, and was blocked every time.
 
-**Step 3g: Switch back to your admin credentials**
+**Step 6g: Switch back to your admin credentials**
 
 **Windows (PowerShell):**
 
@@ -302,9 +428,9 @@ aws sts get-caller-identity
 
 **✅ You should see** your admin role again (with `AdministratorAccess` in the ARN).
 
-**Step 3h: Delete the access keys (simulating covering tracks)**
+**Step 6h: Delete the access keys (simulating covering tracks)**
 
-📋 Copy and paste, **replacing `<ACCESS_KEY_ID>`** with the AccessKeyId from Step 3d:
+📋 Copy and paste, **replacing `<ACCESS_KEY_ID>`** with the AccessKeyId from Step 6d:
 
 ```
 aws iam delete-access-key --user-name suspicious-user --access-key-id <ACCESS_KEY_ID>
@@ -312,7 +438,7 @@ aws iam delete-access-key --user-name suspicious-user --access-key-id <ACCESS_KE
 
 **✅ No output means success.**
 
-**Step 3i: Delete the suspicious user (simulating covering tracks)**
+**Step 6i: Delete the suspicious user (simulating covering tracks)**
 
 📋 Copy and paste:
 
@@ -327,27 +453,27 @@ aws iam delete-user --user-name suspicious-user
 > 2. **Used those keys to probe the account** — enumerating buckets, targeting the confidential bucket, and listing users (every attempt denied)
 > 3. Deleted the user and keys to cover their tracks
 >
-> Notice the two identities at work: the bucket and data were staged under **your admin identity**, while the probing was done under **suspicious-user**. That is exactly the distinction the investigation in Step 5 will reveal — what was done *to* the account (under admin) versus what the attacker did *from inside* it (under suspicious-user).
+> Notice the two identities at work: the bucket and data were staged under **your admin identity**, while the probing was done under **suspicious-user**. That is exactly the distinction the investigation in Step 8 will reveal — what was done *to* the account (under admin) versus what the attacker did *from inside* it (under suspicious-user).
 >
 > The user is gone. The access keys are gone. But did they really cover their tracks? Let's find out...
 
 ---
 
-### Step 4: Wait for CloudTrail to Record Events
+### Step 7: Wait for CloudTrail to Record Events
 
 > **⏱️ CloudTrail events take 5–15 minutes to appear in the Event History.**
 >
 > While you wait, read the **Concepts** section above if you haven't already, or review the **Cert Prep Callout** at the bottom of this lab.
 >
-> After 5–10 minutes, continue to Step 5.
+> After 5–10 minutes, continue to Step 8.
 
 ---
 
-### Step 5: Investigate with CloudTrail
+### Step 8: Investigate with CloudTrail
 
 Now put on your forensic analyst hat. The suspicious user has been deleted, but CloudTrail remembers everything.
 
-**Step 5a: List recent events**
+**Step 8a: List recent events**
 
 📋 Copy and paste:
 
@@ -361,7 +487,7 @@ aws cloudtrail lookup-events --max-results 10 --query "Events[].{Time:EventTime,
 
 ---
 
-**Step 5b: Filter by specific event — find user creation**
+**Step 8b: Filter by specific event — find user creation**
 
 📋 Copy and paste:
 
@@ -373,7 +499,7 @@ aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,Attribut
 
 ---
 
-**Step 5c: Filter by username — find everything the suspicious user touched**
+**Step 8c: Filter by username — find everything the suspicious user touched**
 
 📋 Copy and paste:
 
@@ -381,13 +507,13 @@ aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,Attribut
 aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=suspicious-user --query "Events[].{Time:EventTime,Name:EventName,Source:EventSource}" --output table
 ```
 
-**✅ You should see** the suspicious user's **own** actions — the denied `ListBuckets`, `GetBucketAcl`, and `ListUsers` attempts from Step 3f. This is the attacker's reconnaissance, attributed directly to `suspicious-user`, even though that user has since been deleted.
+**✅ You should see** the suspicious user's **own** actions — the denied `ListBuckets`, `GetBucketAcl`, and `ListUsers` attempts from Step 6f. This is the attacker's reconnaissance, attributed directly to `suspicious-user`, even though that user has since been deleted.
 
-> **💡 Note:** This searches for events where `suspicious-user` was the **actor** (the one making the API calls) — in contrast to Step 5b, where `suspicious-user` was the **target** (created by your admin identity). Together they show the full picture: what was done *to* the account, and what the attacker did *from inside* it.
+> **💡 Note:** This searches for events where `suspicious-user` was the **actor** (the one making the API calls) — in contrast to Step 8b, where `suspicious-user` was the **target** (created by your admin identity). Together they show the full picture: what was done *to* the account, and what the attacker did *from inside* it.
 
 ---
 
-**Step 5d: Find the deletion events — prove tracks cannot be covered**
+**Step 8d: Find the deletion events — prove tracks cannot be covered**
 
 📋 Copy and paste:
 
@@ -407,7 +533,7 @@ aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,Attribut
 
 ---
 
-**Step 5e: Pull the full detail of one attacker action (who, and from where)**
+**Step 8e: Pull the full detail of one attacker action (who, and from where)**
 
 The tables above show *what* the suspicious user did. To see *who* and *from where*, open the full record of one of their denied attempts.
 
@@ -432,7 +558,7 @@ This prints the full CloudTrail record for the attacker's most recent action as 
 
 ---
 
-### Step 6: The Key Insight — You Cannot Cover Your Tracks
+### Step 9: The Key Insight — You Cannot Cover Your Tracks
 
 > **🔑 Critical lesson:** The suspicious user was deleted. The access keys were deleted. But CloudTrail still has a complete record of:
 > - **Who** created the user (your admin identity)
@@ -445,7 +571,7 @@ This prints the full CloudTrail record for the attacker's most recent action as 
 
 ---
 
-### Step 7: Console Checkpoint
+### Step 10: Console Checkpoint
 
 Let's see the event history in the AWS Console:
 
@@ -466,7 +592,7 @@ Let's see the event history in the AWS Console:
 
 You performed a forensic investigation using CloudTrail:
 
-1. **Used CloudTrail Event History** — the always-on audit log, queried with `lookup-events` (no trail required)
+1. **Set up audit logging** — created a CloudTrail trail that records all API activity
 2. **Simulated an attacker** — created a backdoor user, used its keys to probe the account, then deleted the user to cover their tracks
 3. **Investigated with CloudTrail** — used lookup-events to find exactly what happened
 4. **Proved immutability** — demonstrated that deleted resources still leave a permanent audit trail
@@ -499,8 +625,11 @@ The Security Specialty exam tests CloudTrail extensively. You need to understand
 
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
-| `lookup-events` returns empty results | Events take 5–15 minutes to appear in Event History | Wait 10–15 minutes and try again. This is normal CloudTrail behavior. |
+| `An error occurred (InsufficientS3BucketPolicyException)` when creating the trail | The bucket policy does not grant CloudTrail permission to write | Open `cloudtrail-bucket-policy.json` and verify: (1) bucket name is correct in all 3 places, (2) account ID is correct, (3) the policy was applied with `put-bucket-policy` |
+| `An error occurred (TrailAlreadyExistsException)` | The trail already exists from a previous attempt | Delete it first: `aws cloudtrail delete-trail --name workshop-investigation-trail` then try again |
+| `lookup-events` returns empty results | Events take 5–15 minutes to appear | Wait 10–15 minutes and try again. This is normal CloudTrail behavior. |
 | `An error occurred (EntityAlreadyExists)` when creating the user | The user already exists from a previous attempt | Delete it first: `aws iam delete-user --user-name suspicious-user` then try again |
+| `An error occurred (MalformedPolicyDocument)` | JSON syntax error in the bucket policy file | Check for missing commas, brackets, or quotes. Verify all placeholders were replaced. |
 | `An error occurred (NoSuchEntity)` when deleting the user | The user does not exist (already deleted or never created) | This is fine — continue to the next step |
 
 ---
@@ -510,7 +639,41 @@ The Security Specialty exam tests CloudTrail extensively. You need to understand
 >[!IMPORTANT]
 >**⚠️** Always clean up resources after completing a lab. Follow these steps in order.
 
-### Step 1: Empty and Delete the Evidence Bucket
+### Step 1: Stop CloudTrail Logging
+
+📋 Copy and paste:
+
+```
+aws cloudtrail stop-logging --name workshop-investigation-trail
+```
+
+**✅ No output means success.**
+
+### Step 2: Delete the CloudTrail Trail
+
+📋 Copy and paste:
+
+```
+aws cloudtrail delete-trail --name workshop-investigation-trail
+```
+
+**✅ No output means success.**
+
+### Step 3: Empty and Delete the Trail Logs Bucket
+
+📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
+
+```
+aws s3 rm s3://<TRAIL_BUCKET_NAME> --recursive
+```
+
+```
+aws s3 rb s3://<TRAIL_BUCKET_NAME>
+```
+
+**✅ You should see** `remove_bucket: <TRAIL_BUCKET_NAME>`.
+
+### Step 4: Empty and Delete the Evidence Bucket
 
 📋 Copy and paste, **replacing `<EVIDENCE_BUCKET_NAME>`**:
 
@@ -524,23 +687,23 @@ aws s3 rb s3://<EVIDENCE_BUCKET_NAME>
 
 **✅ You should see** `remove_bucket: <EVIDENCE_BUCKET_NAME>`.
 
-> **🔗 Note:** This lab created no trail, so there's nothing CloudTrail-related to tear down. Your Session 3 track trail (if running) stays put.
+### Step 5: Delete Local Files
 
-### Step 2: Delete Local Files
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-4b` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
 
 Remove the project folder:
 
 **Windows (PowerShell):**
 
 ```powershell
-cd ~
+cd ~\Desktop
 Remove-Item -Recurse -Force ~\Desktop\workshop-lab-4b
 ```
 
 **macOS / Linux:**
 
 ```bash
-cd ~
+cd ~/Desktop
 rm -rf ~/Desktop/workshop-lab-4b
 ```
 
