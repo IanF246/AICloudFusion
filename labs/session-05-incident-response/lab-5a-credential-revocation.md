@@ -10,6 +10,8 @@
 
 ## Overview
 
+> **🛡️ Cloud Security Track — where you are: RESPOND.** You **built** the foundation (Session 3) and **detected** threats (Session 4). Session 5 is **response** — contain and eradicate a compromise, investigate what happened, then automate the fix.
+
 In this lab, you will:
 
 1. **Create an IAM user** simulating a user whose credentials were stolen
