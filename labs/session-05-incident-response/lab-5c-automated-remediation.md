@@ -27,7 +27,7 @@ By the end of this lab, you will have built a real automated incident response s
 - ✅ Completed **Lab 1A** (AWS CLI installed and configured)
 - ✅ Completed **Lab 5A** (understand credential revocation)
 - ✅ AWS CLI authenticated — run `aws sts get-caller-identity` and confirm it returns your account info
-- ✅ A text editor to create files (VS Code, Notepad, or any editor)
+- ✅ **VS Code** installed (from Lab 1B) — any text editor works, but these labs assume VS Code
 
 ---
 
@@ -86,7 +86,7 @@ Commands are inside gray code boxes. **📋 Copy and paste** them into your term
 | `<LAMBDA_ARN>` | The ARN of your Lambda function (Step 8) | `arn:aws:lambda:us-east-1:123456789012:function:workshop-key-revoker` |
 | `<RULE_ARN>` | The ARN of your EventBridge rule (Step 11) | `arn:aws:events:us-east-1:123456789012:rule/workshop-auto-revoke` |
 | `<TEST_KEY_ID>` | The Access Key ID of the test user (Step 9) | `AKIAIOSFODNN7EXAMPLE` |
-| `<STUDENT>` | Unique name for your S3 bucket | `student-cloudtrail-bucket` |
+| `<TRAIL_BUCKET_NAME>` | A globally unique S3 bucket name for CloudTrail logs | `jdoe-lab5c-cloudtrail-logs` |
 
 ---
 
@@ -148,6 +148,14 @@ pwd
 
 > **💡 Save ALL files you create in this lab to this folder.**
 
+**Open the folder in VS Code.** 📋 Copy and paste:
+
+```
+code .
+```
+
+> This opens VS Code with `workshop-lab-5c` as its **file tree**, so the JSON files and the Lambda code you create land in the right place. (You set up the `code` command in Lab 1B — if you see `'code' is not recognized`, close and reopen your terminal, or revisit Lab 1B, Step 6.)
+
 ---
 
 ### Step 3: Check for an Existing CloudTrail Trail
@@ -206,7 +214,7 @@ aws cloudtrail delete-trail --name <TRAILNAME> --region us-east-1
 
 #### Path C — A trail exists that you are using for something else.
 
-If you have an established trail, and are confident in what you are doing, you can ignore it can create a new trail. Note however that any trail running after the first one will incur costs.
+If you have an established trail and are confident in what you are doing, you can leave it and create a new trail. Note, however, that any trail running beyond the first one will incur costs.
 
 ---
 
@@ -217,7 +225,7 @@ CloudTrail requires an S3 bucket to store log files. You will create a dedicated
 **Step 4a: Create the bucket**:
 
 ```
-aws s3api create-bucket --bucket <STUDENT>-workshop-cloudtrail --region us-east-1
+aws s3api create-bucket --bucket <TRAIL_BUCKET_NAME> --region us-east-1
 ```
 
 **✅ You should see** JSON with the bucket location.
@@ -226,9 +234,9 @@ aws s3api create-bucket --bucket <STUDENT>-workshop-cloudtrail --region us-east-
 
 **Step 4b: Create the bucket policy**
 
-Open your text editor and create a **new, empty file**.
+In the VS Code file tree, create a **New File** named `bucket-policy.json`.
 
-📋 Copy and paste this entire block into the file, **replacing `<STUDENT>` in all two places and `<ACCOUNT_ID>` in one place**:
+📋 Copy and paste this entire block into it, **replacing `<TRAIL_BUCKET_NAME>` in both places and `<ACCOUNT_ID>` in one place**:
 
 ```json
 {
@@ -239,14 +247,14 @@ Open your text editor and create a **new, empty file**.
             "Effect": "Allow",
             "Principal": {"Service": "cloudtrail.amazonaws.com"},
             "Action": "s3:GetBucketAcl",
-            "Resource": "arn:aws:s3:::<STUDENT>-workshop-cloudtrail"
+            "Resource": "arn:aws:s3:::<TRAIL_BUCKET_NAME>"
         },
         {
             "Sid": "AWSCloudTrailWrite",
             "Effect": "Allow",
             "Principal": {"Service": "cloudtrail.amazonaws.com"},
             "Action": "s3:PutObject",
-            "Resource": "arn:aws:s3:::<STUDENT>-workshop-cloudtrail/AWSLogs/<ACCOUNT_ID>/*",
+            "Resource": "arn:aws:s3:::<TRAIL_BUCKET_NAME>/AWSLogs/<ACCOUNT_ID>/*",
             "Condition": {
                 "StringEquals": {"s3:x-amz-acl": "bucket-owner-full-control"}
             }
@@ -255,12 +263,12 @@ Open your text editor and create a **new, empty file**.
 }
 ```
 
-Save the file as `bucket-policy.json` in your `workshop-lab-5c` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
-**Step 4c: Apply the bucket policy** (replace `<STUDENT>`):
+**Step 4c: Apply the bucket policy** (replace `<TRAIL_BUCKET_NAME>`):
 
 ```
-aws s3api put-bucket-policy --bucket <STUDENT>-workshop-cloudtrail --policy file://bucket-policy.json
+aws s3api put-bucket-policy --bucket <TRAIL_BUCKET_NAME> --policy file://bucket-policy.json
 ```
 
 **✅ No output means success.**
@@ -271,10 +279,10 @@ aws s3api put-bucket-policy --bucket <STUDENT>-workshop-cloudtrail --policy file
 
 ### Step 5: Create and Start the CloudTrail Trail
 
-**Step 5a: Create the trail** (replace `<STUDENT>`):
+**Step 5a: Create the trail** (replace `<TRAIL_BUCKET_NAME>`):
 
 ```
-aws cloudtrail create-trail --name workshop-trail --s3-bucket-name <STUDENT>-workshop-cloudtrail --is-multi-region-trail
+aws cloudtrail create-trail --name workshop-trail --s3-bucket-name <TRAIL_BUCKET_NAME> --is-multi-region-trail
 ```
 
 **✅ You should see** JSON with the trail details including a `TrailARN`.
@@ -311,9 +319,9 @@ The Lambda function needs permission to deactivate access keys. You will create 
 
 **Step 6a: Create the trust policy**
 
-Open your text editor and create a **new, empty file**.
+In the VS Code file tree, create a **New File** named `trust-policy.json`.
 
-📋 Copy and paste this entire block into the file:
+📋 Copy and paste this entire block into it:
 
 ```json
 {
@@ -330,7 +338,7 @@ Open your text editor and create a **new, empty file**.
 }
 ```
 
-Save the file as `trust-policy.json` in your `workshop-lab-5c` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 **Step 6b: Create the IAM role and attach the policy**
 
@@ -370,9 +378,9 @@ aws iam attach-role-policy --role-name workshop-key-revoker-role --policy-arn ar
 
 ### Step 7: Write the Lambda Function
 
-**Step 7a:** Open your text editor and create a **new, empty file**.
+**Step 7a:** In the VS Code file tree, create a **New File** named `revoke_key.py`.
 
-**Step 7b:** 📋 Copy and paste this entire Python function into the file:
+**Step 7b:** 📋 Copy and paste this entire Python function into it:
 
 ```python
 import json
@@ -412,7 +420,7 @@ def lambda_handler(event, context):
         return {'statusCode': 500, 'body': error_msg}
 ```
 
-**Step 7c:** Save the file as `revoke_key.py` in your `workshop-lab-5c` folder.
+**Step 7c:** **Save** the file (**Ctrl+S** / **Cmd+S**).
 
 ---
 
@@ -476,9 +484,9 @@ aws iam list-access-keys --user-name auto-revoke-test --query "AccessKeyMetadata
 
 **Step 9d: Create the test event**
 
-Open your text editor and create a **new, empty file**.
+In the VS Code file tree, create a **New File** named `test-event.json`.
 
-📋 Copy and paste this entire block, **replacing `<TEST_KEY_ID>`** with the AccessKeyId from Step 9b:
+📋 Copy and paste this entire block into it, **replacing `<TEST_KEY_ID>`** with the AccessKeyId from Step 9b:
 
 ```json
 {
@@ -498,7 +506,7 @@ Open your text editor and create a **new, empty file**.
 }
 ```
 
-Save the file as `test-event.json` in your `workshop-lab-5c` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 **Step 9e: Invoke the Lambda function**
 
@@ -558,9 +566,9 @@ aws iam delete-access-key --user-name auto-revoke-test --access-key-id <TEST_KEY
 
 **Step 11a: Create the event pattern**
 
-Open your text editor and create a **new, empty file**.
+In the VS Code file tree, create a **New File** named `eventbridge-pattern.json`.
 
-📋 Copy and paste:
+📋 Copy and paste this into it:
 
 ```json
 {
@@ -573,7 +581,7 @@ Open your text editor and create a **new, empty file**.
 }
 ```
 
-Save the file as `eventbridge-pattern.json` in your `workshop-lab-5c` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 **Step 11b: Create the EventBridge rule**
 
@@ -788,14 +796,14 @@ aws cloudtrail describe-trails --region us-east-1
 
 If you see `"trailList": []` the deletion is confirmed.
 
-### Cleanup Step 7: Empty and Delete the S3 Bucket (replace `<STUDENT>`)
+### Cleanup Step 7: Empty and Delete the S3 Bucket (replace `<TRAIL_BUCKET_NAME>`)
 
 ```
-aws s3 rm s3://<STUDENT>-workshop-cloudtrail --recursive
+aws s3 rm s3://<TRAIL_BUCKET_NAME> --recursive
 ```
 
 ```
-aws s3api delete-bucket --bucket <STUDENT>-workshop-cloudtrail --region us-east-1
+aws s3api delete-bucket --bucket <TRAIL_BUCKET_NAME> --region us-east-1
 ```
 
 Verify bucket is deleted:
@@ -806,16 +814,19 @@ aws s3 ls
 
 ### Cleanup Step 8: Delete Local Files
 
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-5c` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
+
 **Windows (PowerShell):**
 
 ```powershell
-cd ~\Desktop
+cd ~
 Remove-Item -Recurse -Force ~\Desktop\workshop-lab-5c
 ```
 
 **macOS / Linux:**
 
 ```bash
+cd ~
 rm -rf ~/Desktop/workshop-lab-5c
 ```
 
