@@ -26,7 +26,7 @@ By the end of this lab, you will understand how to configure CloudTrail to strea
 
 - ✅ Completed **Lab 1A** (AWS CLI installed and configured)
 - ✅ AWS CLI authenticated — run `aws sts get-caller-identity` and confirm it returns your account info
-- ✅ A text editor to create files (VS Code, Notepad, or any editor)
+- ✅ **VS Code** installed (from Lab 1B) — any text editor works, but these labs assume VS Code
 
 ---
 
@@ -96,7 +96,8 @@ Commands are inside gray code boxes. **📋 Copy and paste** them into your term
 | Placeholder | What to Replace It With | Example |
 |-------------|------------------------|---------|
 | `<YOUR_PROFILE_NAME>` | Your AWS CLI profile name from Lab 1A | `AdministratorAccess-123456789012` |
-| `<STUDENT>` | Your first name or initials (lowercase, no spaces) | `jdoe` |
+| `<TRAIL_BUCKET_NAME>` | A globally unique S3 bucket name for CloudTrail logs | `jdoe-lab5b-trail-logs` |
+| `<EVIDENCE_BUCKET_NAME>` | A globally unique S3 bucket name for the "evidence" data | `jdoe-lab5b-evidence` |
 | `<ACCOUNT_ID>` | Your 12-digit AWS account ID (Step 3a) | `123456789012` |
 | `<KEY_ID>` | The attacker's Access Key ID (Step 5d) | `AKIAIOSFODNN7EXAMPLE` |
 | `<SECRET_KEY>` | The attacker's Secret Access Key (Step 5d) | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
@@ -157,6 +158,14 @@ pwd
 
 > **💡 Save ALL files you create in this lab to this folder.**
 
+**Open the folder in VS Code.** 📋 Copy and paste:
+
+```
+code .
+```
+
+> This opens VS Code with `workshop-lab-5b` as its **file tree**, so the several JSON files and the incident report you create land in the right place. (You set up the `code` command in Lab 1B — if you see `'code' is not recognized`, close and reopen your terminal, or revisit Lab 1B, Step 6.)
+
 ---
 
 ### Step 3: Set Up the CloudTrail Trail with CloudWatch Logs
@@ -181,29 +190,29 @@ aws sts get-caller-identity --query Account --output text
 
 The bucket that will hold "sensitive" data the attacker targets.
 
-📋 Copy and paste, **replacing `<STUDENT>`**:
+📋 Copy and paste, **replacing `<EVIDENCE_BUCKET_NAME>`**:
 
 ```
-aws s3 mb s3://<STUDENT>-incident-evidence --region us-east-1
+aws s3 mb s3://<EVIDENCE_BUCKET_NAME> --region us-east-1
 ```
 
-**✅ You should see:** `make_bucket: <STUDENT>-incident-evidence`
+**✅ You should see:** `make_bucket: <EVIDENCE_BUCKET_NAME>`
 
 **Step 3c: Create a dedicated bucket for CloudTrail logs**
 
 CloudTrail needs its own separate bucket to write log files to.
 
-📋 Copy and paste, **replacing `<STUDENT>`**:
+📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
 
 ```
-aws s3 mb s3://<STUDENT>-cloudtrail-logs --region us-east-1
+aws s3 mb s3://<TRAIL_BUCKET_NAME> --region us-east-1
 ```
 
-**✅ You should see:** `make_bucket: <STUDENT>-cloudtrail-logs`
+**✅ You should see:** `make_bucket: <TRAIL_BUCKET_NAME>`
 
 **Step 3d: Apply a bucket policy so CloudTrail can write to the logging bucket**
 
-Open your text editor and create a new file. 📋 Copy and paste this entire block, **replacing `<STUDENT>` and `<ACCOUNT_ID>`**:
+In the VS Code file tree, create a **New File** named `trail-policy.json`. 📋 Copy and paste this entire block into it, **replacing `<TRAIL_BUCKET_NAME>` and `<ACCOUNT_ID>`**:
 
 ```json
 {
@@ -216,7 +225,7 @@ Open your text editor and create a new file. 📋 Copy and paste this entire blo
                 "Service": "cloudtrail.amazonaws.com"
             },
             "Action": "s3:GetBucketAcl",
-            "Resource": "arn:aws:s3:::<STUDENT>-cloudtrail-logs"
+            "Resource": "arn:aws:s3:::<TRAIL_BUCKET_NAME>"
         },
         {
             "Sid": "AWSCloudTrailWrite",
@@ -225,7 +234,7 @@ Open your text editor and create a new file. 📋 Copy and paste this entire blo
                 "Service": "cloudtrail.amazonaws.com"
             },
             "Action": "s3:PutObject",
-            "Resource": "arn:aws:s3:::<STUDENT>-cloudtrail-logs/AWSLogs/<ACCOUNT_ID>/*",
+            "Resource": "arn:aws:s3:::<TRAIL_BUCKET_NAME>/AWSLogs/<ACCOUNT_ID>/*",
             "Condition": {
                 "StringEquals": {
                     "s3:x-amz-acl": "bucket-owner-full-control"
@@ -236,12 +245,12 @@ Open your text editor and create a new file. 📋 Copy and paste this entire blo
 }
 ```
 
-Save as `trail-policy.json`, then apply it:
+**Save** the file (**Ctrl+S** / **Cmd+S**), then apply it:
 
-📋 Copy and paste, **replacing `<STUDENT>`**:
+📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
 
 ```
-aws s3api put-bucket-policy --bucket <STUDENT>-cloudtrail-logs --policy file://trail-policy.json
+aws s3api put-bucket-policy --bucket <TRAIL_BUCKET_NAME> --policy file://trail-policy.json
 ```
 
 **✅ No output means success.**
@@ -270,7 +279,7 @@ aws logs put-retention-policy --log-group-name lab5b-cloudtrail-logs --retention
 
 CloudTrail needs explicit permission to send events to your log group. You grant this with a dedicated IAM role.
 
-Open your text editor and create a new file. 📋 Copy and paste this entire block:
+In the VS Code file tree, create a **New File** named `cloudtrail-trust-policy.json`. 📋 Copy and paste this entire block into it:
 
 ```json
 {
@@ -287,7 +296,7 @@ Open your text editor and create a new file. 📋 Copy and paste this entire blo
 }
 ```
 
-Save as `cloudtrail-trust-policy.json`.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 Create the role:
 
@@ -297,7 +306,7 @@ aws iam create-role --role-name lab5b-cloudtrail-role --assume-role-policy-docum
 
 **✅ You should see** JSON output with `"RoleName": "lab5b-cloudtrail-role"`.
 
-Now create a new file for the role's permissions. 📋 Copy and paste this entire block, **replacing `<ACCOUNT_ID>`**:
+Now create another **New File** named `cloudtrail-logs-policy.json`. 📋 Copy and paste this entire block into it, **replacing `<ACCOUNT_ID>`**:
 
 ```json
 {
@@ -315,7 +324,7 @@ Now create a new file for the role's permissions. 📋 Copy and paste this entir
 }
 ```
 
-Save as `cloudtrail-logs-policy.json`.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 Attach the permissions to the role:
 
@@ -340,10 +349,10 @@ aws cloudtrail delete-trail --name <TRAIL_NAME>
 ```
 Run the previous command to confirm the trail was deleted. After you verify we can create a new trail.
 
-📋 Copy and paste, **replacing `<STUDENT>`, `<ACCOUNT_ID>`**:
+📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`, `<ACCOUNT_ID>`**:
 
 ```
-aws cloudtrail create-trail --name lab5b-trail --s3-bucket-name <STUDENT>-cloudtrail-logs --cloud-watch-logs-log-group-arn arn:aws:logs:us-east-1:<ACCOUNT_ID>:log-group:lab5b-cloudtrail-logs:* --cloud-watch-logs-role-arn arn:aws:iam::<ACCOUNT_ID>:role/lab5b-cloudtrail-role --region us-east-1
+aws cloudtrail create-trail --name lab5b-trail --s3-bucket-name <TRAIL_BUCKET_NAME> --cloud-watch-logs-log-group-arn arn:aws:logs:us-east-1:<ACCOUNT_ID>:log-group:lab5b-cloudtrail-logs:* --cloud-watch-logs-role-arn arn:aws:iam::<ACCOUNT_ID>:role/lab5b-cloudtrail-role --region us-east-1
 ```
 
 **✅ You should see** JSON output with `"Name": "lab5b-trail"` and both the S3 bucket and CloudWatch log group ARNs listed.
@@ -352,7 +361,7 @@ aws cloudtrail create-trail --name lab5b-trail --s3-bucket-name <STUDENT>-cloudt
 
 This is the key step — it tells the trail to record every object-level operation (downloads, uploads) on your evidence bucket, not just bucket-level management events.
 
-Open your text editor and create a new file. 📋 Copy and paste this entire block, **replacing `<STUDENT>`**:
+In the VS Code file tree, create a **New File** named `event-selectors.json`. 📋 Copy and paste this entire block into it, **replacing `<EVIDENCE_BUCKET_NAME>`**:
 
 ```json
 [
@@ -362,14 +371,14 @@ Open your text editor and create a new file. 📋 Copy and paste this entire blo
         "DataResources": [
             {
                 "Type": "AWS::S3::Object",
-                "Values": ["arn:aws:s3:::<STUDENT>-incident-evidence/"]
+                "Values": ["arn:aws:s3:::<EVIDENCE_BUCKET_NAME>/"]
             }
         ]
     }
 ]
 ```
 
-Save as `event-selectors.json`, then apply:
+**Save** the file (**Ctrl+S** / **Cmd+S**), then apply:
 
 ```
 aws cloudtrail put-event-selectors --trail-name lab5b-trail --event-selectors file://event-selectors.json
@@ -408,23 +417,23 @@ aws cloudtrail get-trail-status --name lab5b-trail --query "{IsLogging:IsLogging
 
 **Windows (PowerShell):**
 
-📋 Copy and paste, **replacing `<STUDENT>`**:
+📋 Copy and paste, **replacing `<EVIDENCE_BUCKET_NAME>`**:
 
 ```powershell
-"CONFIDENTIAL: Employee salary data - Q4 2024 report. SSN: XXX-XX-XXXX" | Out-File sensitive-data.txt
-aws s3 cp sensitive-data.txt s3://<STUDENT>-incident-evidence/sensitive-data.txt
+"CONFIDENTIAL: Employee salary data - Q4 2024 report. SSN: XXX-XX-XXXX" | Out-File -Encoding utf8 sensitive-data.txt
+aws s3 cp sensitive-data.txt s3://<EVIDENCE_BUCKET_NAME>/sensitive-data.txt
 ```
 
 **macOS / Linux:**
 
-📋 Copy and paste, **replacing `<STUDENT>`**:
+📋 Copy and paste, **replacing `<EVIDENCE_BUCKET_NAME>`**:
 
 ```bash
 echo "CONFIDENTIAL: Employee salary data - Q4 2024 report. SSN: XXX-XX-XXXX" > sensitive-data.txt
-aws s3 cp sensitive-data.txt s3://<STUDENT>-incident-evidence/sensitive-data.txt
+aws s3 cp sensitive-data.txt s3://<EVIDENCE_BUCKET_NAME>/sensitive-data.txt
 ```
 
-**✅ You should see:** `upload: ./sensitive-data.txt to s3://<STUDENT>-incident-evidence/sensitive-data.txt`
+**✅ You should see:** `upload: ./sensitive-data.txt to s3://<EVIDENCE_BUCKET_NAME>/sensitive-data.txt`
 
 **Step 4b: Create the attacker user**
 
@@ -436,7 +445,7 @@ aws iam create-user --user-name attacker-simulation
 
 **Step 4c: Give the attacker S3 read access**
 
-Open your text editor and create a new file. 📋 Copy and paste:
+In the VS Code file tree, create a **New File** named `attacker-policy.json`. 📋 Copy and paste this into it:
 
 ```json
 {
@@ -456,7 +465,7 @@ Open your text editor and create a new file. 📋 Copy and paste:
 }
 ```
 
-Save as `attacker-policy.json`, then apply:
+**Save** the file (**Ctrl+S** / **Cmd+S**), then apply:
 
 ```
 aws iam put-user-policy --user-name attacker-simulation --policy-name S3ReadAccess --policy-document file://attacker-policy.json
@@ -519,27 +528,27 @@ aws sts get-caller-identity
 aws s3 ls
 ```
 
-**✅ You should see** a list of buckets including `<STUDENT>-incident-evidence`.
+**✅ You should see** a list of buckets including `<EVIDENCE_BUCKET_NAME>`.
 
 **Step 5d: List the contents of the sensitive bucket**
 
-📋 Copy and paste, **replacing `<STUDENT>`**:
+📋 Copy and paste, **replacing `<EVIDENCE_BUCKET_NAME>`**:
 
 ```
-aws s3 ls s3://<STUDENT>-incident-evidence/
+aws s3 ls s3://<EVIDENCE_BUCKET_NAME>/
 ```
 
 **✅ You should see** `sensitive-data.txt` listed.
 
 **Step 5e: Download the sensitive file (data exfiltration)**
 
-📋 Copy and paste, **replacing `<STUDENT>`**:
+📋 Copy and paste, **replacing `<EVIDENCE_BUCKET_NAME>`**:
 
 ```
-aws s3 cp s3://<STUDENT>-incident-evidence/sensitive-data.txt stolen-data.txt
+aws s3 cp s3://<EVIDENCE_BUCKET_NAME>/sensitive-data.txt stolen-data.txt
 ```
 
-**✅ You should see:** `download: s3://<STUDENT>-incident-evidence/sensitive-data.txt to ./stolen-data.txt`
+**✅ You should see:** `download: s3://<EVIDENCE_BUCKET_NAME>/sensitive-data.txt to ./stolen-data.txt`
 
 > **The attacker now has your confidential data.** This `GetObject` call was recorded by the trail as a data event and is streaming to CloudWatch Logs right now. You will see it in your investigation.
 
@@ -618,16 +627,16 @@ aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,Attribute
 
 This is the primary investigation step. CloudWatch Logs Insights queries the trail's log stream directly, which includes both management events and data events. You will filter by the compromised account's identity to reconstruct everything the attacker did.
 
-**Step 8a: Open CloudWatch Logs Insights in the console**
+**Step 8a: Open CloudWatch Logs in the console**
 
 1. Go to [https://console.aws.amazon.com/](https://console.aws.amazon.com/)
 2. Search for **CloudWatch** in the top search bar and click it
-3. In the left sidebar, under **Logs**, click **Log Management** and you can continue to **Logs Insights**
+3. In the left sidebar, under **Logs**, click **Log Analytics**
 
 **Step 8b: Select the log group**
 
-1. Click the **Select log group(s)** dropdown at the top
-2. Type `lab5b-cloudtrail-logs` and select it
+1. Where it says **Log group** dropdown, select **All** to open search log group
+2. Type `lab5b-cloudtrail-logs` and select it, or scroll and select it
 3. Set the time range to **Last 1 hour** (or **Custom** if you started the lab more than an hour ago)
 
 **Step 8c: Run the investigation query**
@@ -650,8 +659,8 @@ Click **Run query**.
 |-----------|-----------|----------------------|-----------------------------|-----------------------|
 | 2024-XX-XX... | GetCallerIdentity | attacker-simulation | — | — |
 | 2024-XX-XX... | ListBuckets | attacker-simulation | — | — |
-| 2024-XX-XX... | ListObjects | attacker-simulation | \<STUDENT>-incident-evidence | — |
-| 2024-XX-XX... | GetObject | attacker-simulation | \<STUDENT>-incident-evidence | sensitive-data.txt |
+| 2024-XX-XX... | ListObjects | attacker-simulation | \<EVIDENCE_BUCKET_NAME> | — |
+| 2024-XX-XX... | GetObject | attacker-simulation | \<EVIDENCE_BUCKET_NAME> | sensitive-data.txt |
 
 > **This is your forensic timeline.** Every row is a tamper-evident, timestamped record of what the attacker did. The `GetObject` row on `sensitive-data.txt` is your evidence of data exfiltration — the specific file that was stolen.
 
@@ -735,9 +744,9 @@ aws iam delete-user --user-name attacker-simulation
 
 ### Step 11: Document — Write the Incident Report
 
-**Step 11a:** Open your text editor and create a new empty file.
+**Step 11a:** In the VS Code file tree, create a **New File** named `incident-report.md`.
 
-**Step 11b:** 📋 Copy and paste this entire template:
+**Step 11b:** 📋 Copy and paste this entire template into it:
 
 ```markdown
 # Incident Report
@@ -790,7 +799,7 @@ aws iam delete-user --user-name attacker-simulation
 | Username | attacker-simulation |
 | Access Key ID | [KEY ID] |
 | Source IP | [IP FROM LOGS INSIGHTS] |
-| Bucket | [STUDENT]-incident-evidence |
+| Bucket | [EVIDENCE BUCKET NAME] |
 | Object Key | sensitive-data.txt |
 
 ## Containment Actions
@@ -817,7 +826,7 @@ aws iam delete-user --user-name attacker-simulation
 5. [e.g., "Ensure CloudTrail trails with S3 data event logging and CloudWatch Logs integration are configured in all accounts before an incident occurs — evidence that does not exist cannot be recovered"]
 ```
 
-**Step 11c:** Save as `incident-report.md` in your `workshop-lab-5b` folder.
+**Step 11c:** **Save** the file (**Ctrl+S** / **Cmd+S**). You should see `incident-report.md` in the file tree.
 
 **Step 11d:** Fill in the template using the timestamps and data from Steps 7 and 8. Pay attention to the **Evidence Source** column — note which events were only visible in CloudWatch Logs Insights (data events) versus which also appeared in the CLI `lookup-events` output (management events). This distinction goes directly into the Key Forensic Evidence section.
 
@@ -897,7 +906,7 @@ You practiced four critical IR skills:
 
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
-| `create-trail` returns `InsufficientS3BucketPolicyException` | CloudTrail cannot write to the logging bucket | Re-check `trail-policy.json` — ensure `<STUDENT>` and `<ACCOUNT_ID>` were replaced correctly, then re-apply the policy |
+| `create-trail` returns `InsufficientS3BucketPolicyException` | CloudTrail cannot write to the logging bucket | Re-check `trail-policy.json` — ensure `<TRAIL_BUCKET_NAME>` and `<ACCOUNT_ID>` were replaced correctly, then re-apply the policy |
 | `create-trail` returns an error about CloudWatch Logs role | IAM role permissions are not yet propagated | Wait 10 seconds and retry — IAM changes take a moment to propagate |
 | `get-trail-status` shows `LatestDeliveryError` | CloudTrail cannot deliver to S3 | Verify the bucket policy was applied and the bucket name in the trail matches exactly |
 | Logs Insights query returns no results | Events have not arrived yet, or wrong time range | Set the time range to **Last 1 hour** and wait 10 more minutes. CloudTrail delivers to CloudWatch within 5–15 minutes |
@@ -946,31 +955,31 @@ aws iam delete-role --role-name lab5b-cloudtrail-role
 
 ### Step 4: Delete the CloudTrail Logging Bucket
 
-📋 Copy and paste, **replacing `<STUDENT>`**:
+📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
 
 ```
-aws s3 rm s3://<STUDENT>-cloudtrail-logs --recursive
+aws s3 rm s3://<TRAIL_BUCKET_NAME> --recursive
 ```
 
 ```
-aws s3 rb s3://<STUDENT>-cloudtrail-logs
+aws s3 rb s3://<TRAIL_BUCKET_NAME>
 ```
 
-**✅ You should see:** `remove_bucket: <STUDENT>-cloudtrail-logs`
+**✅ You should see:** `remove_bucket: <TRAIL_BUCKET_NAME>`
 
 ### Step 5: Delete the Evidence Bucket
 
-📋 Copy and paste, **replacing `<STUDENT>`**:
+📋 Copy and paste, **replacing `<EVIDENCE_BUCKET_NAME>`**:
 
 ```
-aws s3 rm s3://<STUDENT>-incident-evidence --recursive
+aws s3 rm s3://<EVIDENCE_BUCKET_NAME> --recursive
 ```
 
 ```
-aws s3 rb s3://<STUDENT>-incident-evidence
+aws s3 rb s3://<EVIDENCE_BUCKET_NAME>
 ```
 
-**✅ You should see:** `remove_bucket: <STUDENT>-incident-evidence`
+**✅ You should see:** `remove_bucket: <EVIDENCE_BUCKET_NAME>`
 
 ### Step 6: Verify Attacker User Is Deleted
 
@@ -990,16 +999,19 @@ aws iam get-user --user-name attacker-simulation
 
 ### Step 7: Delete Local Files
 
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-5b` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
+
 **Windows (PowerShell):**
 
 ```powershell
-cd ..
+cd ~
 Remove-Item -Recurse -Force ~\Desktop\workshop-lab-5b
 ```
 
 **macOS / Linux:**
 
 ```bash
+cd ~
 rm -rf ~/Desktop/workshop-lab-5b
 ```
 
