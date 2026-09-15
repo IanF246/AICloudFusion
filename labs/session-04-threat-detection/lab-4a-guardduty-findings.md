@@ -10,6 +10,8 @@
 
 ## Overview
 
+> **🛡️ Cloud Security Track — where you are: DETECT.** In Session 3 you built the foundation — least-privilege IAM and the `workshop-security-trail` audit backbone. Session 4 adds **detection**: GuardDuty finds threats, and you wire up automated alerts on top. (Session 5 then covers **response**.)
+
 In this lab, you will:
 
 1. **Enable Amazon GuardDuty** — AWS's continuous threat detection service
