@@ -73,7 +73,7 @@ Here are the placeholders you will use in this lab:
 |-------------|------------------------|---------|
 | `<YOUR_PROFILE_NAME>` | Your AWS CLI profile name from Lab 1A | `AdministratorAccess-123456789012` |
 | `<YOUR_ACCOUNT_ID>` | Your 12-digit AWS account ID (from `aws sts get-caller-identity`) | `123456789012` |
-| `<YOUR_BUCKET_NAME>` | A globally unique S3 bucket name for CloudTrail logs | `jane-doe-cloudtrail-logs` |
+| `<TRAIL_BUCKET_NAME>` | A globally unique S3 bucket name for CloudTrail logs | `jane-doe-cloudtrail-logs` |
 
 ---
 
@@ -169,10 +169,10 @@ code .
 
 CloudTrail needs an S3 bucket to store its log files. Every action in your account will be recorded as a JSON file in this bucket.
 
-📋 Copy and paste this command, **replacing `<YOUR_BUCKET_NAME>`**:
+📋 Copy and paste this command, **replacing `<TRAIL_BUCKET_NAME>`**:
 
 ```
-aws s3 mb s3://<YOUR_BUCKET_NAME> --region us-east-1
+aws s3 mb s3://<TRAIL_BUCKET_NAME> --region us-east-1
 ```
 
 > **🔄 Example:**
@@ -183,7 +183,7 @@ aws s3 mb s3://<YOUR_BUCKET_NAME> --region us-east-1
 **✅ You should see:**
 
 ```
-make_bucket: <YOUR_BUCKET_NAME>
+make_bucket: <TRAIL_BUCKET_NAME>
 ```
 
 ---
@@ -194,7 +194,7 @@ CloudTrail needs permission to write log files to your bucket. You must add a bu
 
 **Step 4a:** In the VS Code file tree, click the **New File** icon and name the file `cloudtrail-bucket-policy.json`.
 
-**Step 4b:** 📋 Copy and paste this entire block into it, **replacing `<YOUR_BUCKET_NAME>`** (2 places) and **`<YOUR_ACCOUNT_ID>`** (1 place):
+**Step 4b:** 📋 Copy and paste this entire block into it, **replacing `<TRAIL_BUCKET_NAME>`** (2 places) and **`<YOUR_ACCOUNT_ID>`** (1 place):
 
 ```json
 {
@@ -207,7 +207,7 @@ CloudTrail needs permission to write log files to your bucket. You must add a bu
                 "Service": "cloudtrail.amazonaws.com"
             },
             "Action": "s3:GetBucketAcl",
-            "Resource": "arn:aws:s3:::<YOUR_BUCKET_NAME>"
+            "Resource": "arn:aws:s3:::<TRAIL_BUCKET_NAME>"
         },
         {
             "Sid": "AWSCloudTrailWrite",
@@ -216,7 +216,7 @@ CloudTrail needs permission to write log files to your bucket. You must add a bu
                 "Service": "cloudtrail.amazonaws.com"
             },
             "Action": "s3:PutObject",
-            "Resource": "arn:aws:s3:::<YOUR_BUCKET_NAME>/AWSLogs/<YOUR_ACCOUNT_ID>/*",
+            "Resource": "arn:aws:s3:::<TRAIL_BUCKET_NAME>/AWSLogs/<YOUR_ACCOUNT_ID>/*",
             "Condition": {
                 "StringEquals": {
                     "s3:x-amz-acl": "bucket-owner-full-control"
@@ -233,7 +233,7 @@ CloudTrail needs permission to write log files to your bucket. You must add a bu
 
 **Step 4c:** **Save** the file (**Ctrl+S** / **Cmd+S**). You should see `cloudtrail-bucket-policy.json` appear in the file tree.
 
-> **⚠️ Common mistakes:** Make sure you replaced `<YOUR_BUCKET_NAME>` in all 2 places and `<YOUR_ACCOUNT_ID>` in 1 place. The account ID must be exactly 12 digits with no dashes or spaces.
+> **⚠️ Common mistakes:** Make sure you replaced `<TRAIL_BUCKET_NAME>` in all 2 places and `<YOUR_ACCOUNT_ID>` in 1 place. The account ID must be exactly 12 digits with no dashes or spaces.
 
 > **What does this file do?** It grants the CloudTrail service two permissions:
 > - **GetBucketAcl** — CloudTrail checks that it has permission to write to the bucket before starting
@@ -243,10 +243,10 @@ CloudTrail needs permission to write log files to your bucket. You must add a bu
 
 **Step 4d: Apply the bucket policy**
 
-📋 Copy and paste, **replacing `<YOUR_BUCKET_NAME>`**:
+📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
 
 ```
-aws s3api put-bucket-policy --bucket <YOUR_BUCKET_NAME> --policy file://cloudtrail-bucket-policy.json
+aws s3api put-bucket-policy --bucket <TRAIL_BUCKET_NAME> --policy file://cloudtrail-bucket-policy.json
 ```
 
 **✅ No output means success.**
@@ -257,19 +257,21 @@ aws s3api put-bucket-policy --bucket <YOUR_BUCKET_NAME> --policy file://cloudtra
 
 Now create the trail that will record all API activity in your account.
 
-📋 Copy and paste, **replacing `<YOUR_BUCKET_NAME>`**:
+📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
 
 ```
-aws cloudtrail create-trail --name workshop-audit-trail --s3-bucket-name <YOUR_BUCKET_NAME> --is-multi-region-trail
+aws cloudtrail create-trail --name workshop-security-trail --s3-bucket-name <TRAIL_BUCKET_NAME> --is-multi-region-trail
 ```
 
 **What does this do?**
 - `create-trail` — creates a new CloudTrail trail
-- `--name workshop-audit-trail` — the name of your trail
+- `--name workshop-security-trail` — the name of your trail
 - `--s3-bucket-name` — where to store the log files
 - `--is-multi-region-trail` — records activity from ALL AWS regions, not just us-east-1
 
-**✅ You should see** JSON output with the trail details, including `"Name": "workshop-audit-trail"`.
+**✅ You should see** JSON output with the trail details, including `"Name": "workshop-security-trail"`.
+
+> **🔗 This is your security-track audit backbone.** You create this trail **once** here in Session 3. **Lab 5B upgrades it** (adding CloudWatch Logs and data-event logging) and **Lab 5C reuses it** to drive automated response. (Lab 4B's investigation uses the always-on CloudTrail **Event History** via `lookup-events`, so it doesn't need a trail — but leave this one running anyway, since 5B and 5C do.) You'll tear it down for good at the very end (the **Final Track Teardown** in Lab 5C). Leaving one trail running costs effectively $0.00 — the first trail is free and log storage is pennies.
 
 ---
 
@@ -280,7 +282,7 @@ Creating a trail does not automatically start recording. You must explicitly sta
 📋 Copy and paste:
 
 ```
-aws cloudtrail start-logging --name workshop-audit-trail
+aws cloudtrail start-logging --name workshop-security-trail
 ```
 
 **✅ No output means success.** CloudTrail is now recording every API call in your account.
@@ -289,7 +291,7 @@ aws cloudtrail start-logging --name workshop-audit-trail
 1. Go to [https://console.aws.amazon.com/](https://console.aws.amazon.com/)
 2. Search for **CloudTrail** in the top search bar and click it
 3. Click **Trails** in the left sidebar
-4. You should see **workshop-audit-trail** with status **Logging**
+4. You should see **workshop-security-trail** with status **Logging**
 
 > **💡 CloudTrail events take 5–15 minutes to appear.** If you check the event history later and do not see recent events, that is normal. Keep going with the lab — the events will appear by the time you reach the auditor testing section.
 
@@ -557,26 +559,26 @@ The developer has full S3 access. Let's prove it by uploading a file to the Clou
 
 **Windows (PowerShell):**
 
-📋 Copy and paste, **replacing `<YOUR_BUCKET_NAME>`**:
+📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
 
 ```powershell
 "developer was here" | Out-File -Encoding utf8 dev-test.txt
-aws s3 cp dev-test.txt s3://<YOUR_BUCKET_NAME>/dev-test.txt
+aws s3 cp dev-test.txt s3://<TRAIL_BUCKET_NAME>/dev-test.txt
 ```
 
 **macOS / Linux:**
 
-📋 Copy and paste, **replacing `<YOUR_BUCKET_NAME>`**:
+📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
 
 ```bash
 echo "developer was here" > dev-test.txt
-aws s3 cp dev-test.txt s3://<YOUR_BUCKET_NAME>/dev-test.txt
+aws s3 cp dev-test.txt s3://<TRAIL_BUCKET_NAME>/dev-test.txt
 ```
 
 **✅ You should see:**
 
 ```
-upload: ./dev-test.txt to s3://<YOUR_BUCKET_NAME>/dev-test.txt
+upload: ./dev-test.txt to s3://<TRAIL_BUCKET_NAME>/dev-test.txt
 ```
 
 The developer CAN write to S3. This action is being recorded by CloudTrail.
@@ -606,7 +608,7 @@ A developer trying to hide their activity might attempt to stop CloudTrail from 
 📋 Copy and paste:
 
 ```
-aws cloudtrail stop-logging --name workshop-audit-trail 2>&1
+aws cloudtrail stop-logging --name workshop-security-trail 2>&1
 ```
 
 **✅ You should see an error:** `An error occurred (AccessDenied)`. The developer role has **no CloudTrail permissions**, so it cannot turn logging off. Every action it takes stays on the record — **it cannot cover its tracks.**
@@ -750,10 +752,10 @@ This prints the full CloudTrail record for the most recent `CreateUser` event as
 
 The auditor can see everything but must not be able to change anything — including destroying evidence. Try to delete the file the developer uploaded earlier.
 
-📋 Copy and paste, **replacing `<YOUR_BUCKET_NAME>`**:
+📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
 
 ```
-aws s3 rm s3://<YOUR_BUCKET_NAME>/dev-test.txt 2>&1
+aws s3 rm s3://<TRAIL_BUCKET_NAME>/dev-test.txt 2>&1
 ```
 
 **✅ You should see an error:** `delete failed` with `An error occurred (AccessDenied)`. The auditor can *read* the data and the logs, but the explicit Deny blocks any write or delete — so it **cannot alter or destroy evidence**. This is the other half of separation of duties: **the investigator can look, but never touch.**
@@ -855,7 +857,7 @@ This lab covers several high-weight exam topics:
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
 | `An error occurred (InsufficientS3BucketPolicyException)` when creating the trail | The bucket policy does not grant CloudTrail permission to write | Open `cloudtrail-bucket-policy.json` and verify: (1) bucket name is correct in all 2 places, (2) account ID is correct, (3) the policy was applied with `put-bucket-policy` |
-| `An error occurred (TrailAlreadyExistsException)` | The trail already exists from a previous attempt | Delete it first: `aws cloudtrail delete-trail --name workshop-audit-trail` then try again |
+| `An error occurred (TrailAlreadyExistsException)` | The trail already exists from a previous attempt | Delete it first: `aws cloudtrail delete-trail --name workshop-security-trail` then try again |
 | `assume-role` returns an error about permissions | Your admin profile may not have permission to assume roles | Verify you are using your admin profile (`get-caller-identity` should show AdministratorAccess) |
 | `get-caller-identity` still shows the previous role after switching | Env vars were not fully cleared | Make sure you cleared ALL THREE: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, AND `AWS_SESSION_TOKEN`. Close and reopen your terminal if needed. |
 | CloudTrail `lookup-events` returns empty results | Events take 5–15 minutes to appear | Wait 10–15 minutes and try again. This is normal CloudTrail behavior. |
@@ -869,12 +871,14 @@ This lab covers several high-weight exam topics:
 
 **⚠️ Important:** Always clean up resources after completing a lab. Follow these steps in order. Make sure you are using your **admin credentials** (not a role).
 
+> **🔗 Continuing the security track (Sessions 4–5)?** The CloudTrail trail (`workshop-security-trail`) and its log bucket are the **shared audit backbone** — **Labs 5B and 5C reuse them** (5B upgrades the trail; 5C drives automation from it). If you're continuing, **skip Steps 1, 2, and 5 below** (leave the trail and bucket running) and only remove the developer/auditor roles (Steps 3–4). You'll tear the trail down for good with the **Final Track Teardown** at the end of Lab 5C. (One running trail costs effectively $0.00.) If you're **done with the security track**, run every step.
+
 ### Step 1: Stop CloudTrail Logging
 
 📋 Copy and paste:
 
 ```
-aws cloudtrail stop-logging --name workshop-audit-trail
+aws cloudtrail stop-logging --name workshop-security-trail
 ```
 
 **✅ No output means success.**
@@ -884,7 +888,7 @@ aws cloudtrail stop-logging --name workshop-audit-trail
 📋 Copy and paste:
 
 ```
-aws cloudtrail delete-trail --name workshop-audit-trail
+aws cloudtrail delete-trail --name workshop-security-trail
 ```
 
 **✅ No output means success.**
@@ -919,17 +923,17 @@ aws iam delete-role --role-name workshop-auditor-role
 
 ### Step 5: Empty and Delete the S3 Bucket
 
-📋 Copy and paste, **replacing `<YOUR_BUCKET_NAME>`**:
+📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
 
 ```
-aws s3 rm s3://<YOUR_BUCKET_NAME> --recursive
+aws s3 rm s3://<TRAIL_BUCKET_NAME> --recursive
 ```
 
 ```
-aws s3 rb s3://<YOUR_BUCKET_NAME>
+aws s3 rb s3://<TRAIL_BUCKET_NAME>
 ```
 
-**✅ You should see** `remove_bucket: <YOUR_BUCKET_NAME>`.
+**✅ You should see** `remove_bucket: <TRAIL_BUCKET_NAME>`.
 
 ### Step 6: Delete Local Files
 
