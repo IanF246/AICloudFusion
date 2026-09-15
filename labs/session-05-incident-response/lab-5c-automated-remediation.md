@@ -158,69 +158,29 @@ code .
 
 ---
 
-### Step 3: Check for an Existing CloudTrail Trail
+### Step 3: Verify (or Create) the Security-Track Trail
 
-> **Why this step matters:** CloudTrail Event History (visible in the AWS Console) does NOT send events to EventBridge. You need an active CloudTrail *trail* for the automated pipeline to work. This step checks whether one already exists so you know what to do next.
+> **Why this step matters:** EventBridge only receives `"AWS API Call via CloudTrail"` events when an active CloudTrail **trail** exists — Event History alone does NOT feed EventBridge. This lab reuses the **`workshop-security-trail`** you created back in Lab 3C.
 
-**Step 3a: List existing trails**
-
-📋 Copy and paste:
+📋 Check whether it's running:
 
 ```
-aws cloudtrail describe-trails --region us-east-1
+aws cloudtrail get-trail-status --name workshop-security-trail --query "IsLogging"
 ```
 
-**Read the output and follow the path that matches your situation:**
+**✅ If you see `true`** — your security-track trail is active. **Skip Steps 4 and 5** and continue to **Step 6**.
+
+**If you get a `TrailNotFoundException` (or `false`)** — you either skipped Lab 3C or already tore the trail down. Do **Steps 4 and 5** below to create it, then carry on.
+
+> **💡 Already have a *different* trail from another project?** Any active multi-region trail will feed EventBridge, so you can leave it and skip Steps 4–5 — just note that a second active trail beyond your first incurs a small cost.
 
 ---
 
-#### Path A — No trails exist (empty `trailList`)
+### Step 4: (If needed) Create an S3 Bucket for CloudTrail Logs
 
-If you see `"trailList": []`, skip to **Step 4**.
+> **Only do Steps 4–5 if Step 3 showed you have no active trail.** If `workshop-security-trail` is already logging, skip to **Step 6**.
 
----
-
-#### Path B — A trail exists but it is the workshop trail from a previous attempt
-
-If you see a trail named `<TRAILNAME>`, delete it now so you start clean.
-
-**Step 3b (Path B only): Check if the trail is currently logging**
-
-📋 Copy and paste:
-
-```
-aws cloudtrail get-trail-status --name <TRAILNAME> --region us-east-1
-```
-
-Look for `"IsLogging": true` or `false`.
-
-**Step 3c (Path B only): Stop logging if it is active**
-
-If `IsLogging` was `true`:
-
-```
-aws cloudtrail stop-logging --name <TRAILNAME> --region us-east-1
-```
-
-**Step 3d (Path B only): Delete the trail**
-
-```
-aws cloudtrail delete-trail --name <TRAILNAME> --region us-east-1
-```
-
-**✅ No output means success.** Skip to **Step 4**.
-
----
-
-#### Path C — A trail exists that you are using for something else.
-
-If you have an established trail and are confident in what you are doing, you can leave it and create a new trail. Note, however, that any trail running beyond the first one will incur costs.
-
----
-
-### Step 4: Create an S3 Bucket for CloudTrail Logs
-
-CloudTrail requires an S3 bucket to store log files. You will create a dedicated bucket for this lab.
+CloudTrail requires an S3 bucket to store log files. You will create a dedicated bucket for the trail.
 
 **Step 4a: Create the bucket**:
 
@@ -282,7 +242,7 @@ aws s3api put-bucket-policy --bucket <TRAIL_BUCKET_NAME> --policy file://bucket-
 **Step 5a: Create the trail** (replace `<TRAIL_BUCKET_NAME>`):
 
 ```
-aws cloudtrail create-trail --name workshop-trail --s3-bucket-name <TRAIL_BUCKET_NAME> --is-multi-region-trail
+aws cloudtrail create-trail --name workshop-security-trail --s3-bucket-name <TRAIL_BUCKET_NAME> --is-multi-region-trail
 ```
 
 **✅ You should see** JSON with the trail details including a `TrailARN`.
@@ -294,7 +254,7 @@ aws cloudtrail create-trail --name workshop-trail --s3-bucket-name <TRAIL_BUCKET
 📋 Copy and paste:
 
 ```
-aws cloudtrail start-logging --name workshop-trail
+aws cloudtrail start-logging --name workshop-security-trail
 ```
 
 **✅ No output means success.**
@@ -304,7 +264,7 @@ aws cloudtrail start-logging --name workshop-trail
 📋 Copy and paste:
 
 ```
-aws cloudtrail get-trail-status --name workshop-trail --region us-east-1
+aws cloudtrail get-trail-status --name workshop-security-trail --region us-east-1
 ```
 
 **✅ You should see** `"IsLogging": true`.
@@ -673,7 +633,7 @@ Access key is automatically deactivated
 
 1. Go to [https://console.aws.amazon.com/](https://console.aws.amazon.com/)
 2. Search for **Lambda** → click `workshop-key-revoker` → check the **Monitor** tab for invocation metrics
-3. Search for **CloudTrail** → click **Trails** → confirm `workshop-trail` is active
+3. Search for **CloudTrail** → click **Trails** → confirm `workshop-security-trail` is active
 4. Search for **EventBridge** → click **Rules** → confirm `workshop-auto-revoke` is Enabled with the Lambda target
 
 ---
@@ -708,7 +668,7 @@ Key facts the exam tests on this pattern:
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
 | Lambda never triggers (no CloudWatch logs) | No active CloudTrail trail | Complete Steps 4–5 to create and start a trail |
-| `IsLogging: false` on the trail | Trail exists but logging was stopped | Run `aws cloudtrail start-logging --name workshop-trail` |
+| `IsLogging: false` on the trail | Trail exists but logging was stopped | Run `aws cloudtrail start-logging --name workshop-security-trail` |
 | Lambda invoke returns `statusCode: 400` | Test event JSON is malformed or missing key ID | Verify you replaced `<TEST_KEY_ID>` in `test-event.json` |
 | Lambda invoke returns `statusCode: 500` | Lambda role lacks IAM permissions | Verify you attached `IAMFullAccess` in Step 6c |
 | `put-targets` returns `FailedEntryCount: 1` | Lambda ARN is wrong | Double-check the ARN from Step 8b |
@@ -720,6 +680,8 @@ Key facts the exam tests on this pattern:
 ## Cleanup
 
 **⚠️ Follow this cleanup order exactly.** Disable EventBridge first to prevent the Lambda from interfering with keys you create during cleanup.
+
+> **🔗 Two parts:** the **Cleanup** steps below remove this lab's own resources (EventBridge rule, Lambda, IAM role, test user). The shared **`workshop-security-trail`** backbone is removed separately in the **Final Track Teardown** at the very end — run that only when you're done with the whole security track.
 
 ### Cleanup Step 1: Remove EventBridge Targets
 
@@ -778,41 +740,7 @@ Delete the user:
 aws iam delete-user --user-name auto-revoke-test
 ```
 
-### Cleanup Step 6: Stop and Delete the CloudTrail Trail
-
-```
-aws cloudtrail stop-logging --name workshop-trail
-```
-
-```
-aws cloudtrail delete-trail --name workshop-trail
-```
-
-Verify the trail has been deleted:
-
-```
-aws cloudtrail describe-trails --region us-east-1
-```
-
-If you see `"trailList": []` the deletion is confirmed.
-
-### Cleanup Step 7: Empty and Delete the S3 Bucket (replace `<TRAIL_BUCKET_NAME>`)
-
-```
-aws s3 rm s3://<TRAIL_BUCKET_NAME> --recursive
-```
-
-```
-aws s3api delete-bucket --bucket <TRAIL_BUCKET_NAME> --region us-east-1
-```
-
-Verify bucket is deleted:
-
-```
-aws s3 ls
-```
-
-### Cleanup Step 8: Delete Local Files
+### Cleanup Step 6: Delete Local Files
 
 > **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-5c` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
 
@@ -829,6 +757,56 @@ Remove-Item -Recurse -Force ~\Desktop\workshop-lab-5c
 cd ~
 rm -rf ~/Desktop/workshop-lab-5c
 ```
+
+---
+
+## Final Track Teardown
+
+> **🔗 Do this only when you are finished with the entire Cloud Security track (Sessions 3–5).** These commands remove the **shared audit backbone** — the `workshop-security-trail` CloudTrail trail, its CloudWatch Log Group and IAM role (added in Lab 5B), and the S3 log bucket — that Labs 3C, 5B, and 5C all relied on. (Labs 3C and 5B told you to leave these running and tear them down here.)
+
+**1. Stop and delete the trail:**
+
+```
+aws cloudtrail stop-logging --name workshop-security-trail
+```
+
+```
+aws cloudtrail delete-trail --name workshop-security-trail
+```
+
+Verify it's gone (you should see `"trailList": []`):
+
+```
+aws cloudtrail describe-trails --region us-east-1
+```
+
+**2. Delete the CloudWatch Log Group** (created in Lab 5B — skip if you never did 5B):
+
+```
+aws logs delete-log-group --log-group-name security-track-cloudtrail-logs --region us-east-1
+```
+
+**3. Delete the CloudTrail → CloudWatch IAM role** (created in Lab 5B — skip if you never did 5B):
+
+```
+aws iam delete-role-policy --role-name security-track-cloudtrail-role --policy-name CloudWatchLogsWrite
+```
+
+```
+aws iam delete-role --role-name security-track-cloudtrail-role
+```
+
+**4. Empty and delete the log bucket** (replace `<TRAIL_BUCKET_NAME>`):
+
+```
+aws s3 rm s3://<TRAIL_BUCKET_NAME> --recursive
+```
+
+```
+aws s3api delete-bucket --bucket <TRAIL_BUCKET_NAME> --region us-east-1
+```
+
+**✅ Your security-track audit backbone is fully removed.** Nothing from Sessions 3–5 is left running.
 
 ---
 
