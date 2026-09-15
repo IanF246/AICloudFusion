@@ -10,6 +10,8 @@
 
 ## Overview
 
+> **🛡️ Cloud Security Track — where you are: BUILD.** Sessions 3–5 tell one story: **build** strong access controls and audit logging (Session 3), **detect** threats on top of them (Session 4), then **respond** to incidents (Session 5). You're at the start — laying the foundation.
+
 In this lab, you will:
 
 1. **Create an S3 bucket** with a test file
