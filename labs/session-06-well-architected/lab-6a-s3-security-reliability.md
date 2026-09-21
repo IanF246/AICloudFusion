@@ -25,7 +25,7 @@ The key idea of this lab is the **feedback loop**: for each problem, you will fi
 
 - ✅ Completed **Lab 1A** (AWS CLI installed and configured)
 - ✅ AWS CLI authenticated — run `aws sts get-caller-identity` and confirm it returns your account info
-- ✅ A text editor for creating files
+- ✅ **VS Code** installed (from Lab 1B) — any text editor works, but these labs assume VS Code
 
 ---
 
@@ -128,6 +128,14 @@ cd ~/Desktop/workshop-lab-6a
 
 > **💡 From now on, save ALL files you create in this lab to this folder.**
 
+**Open the folder in VS Code.** 📋 Copy and paste:
+
+```
+code .
+```
+
+> This opens VS Code with `workshop-lab-6a` as its **file tree**, so the JSON files and the Lambda code you create land in the right place. (You set up the `code` command in Lab 1B — if you see `'code' is not recognized`, close and reopen your terminal, or revisit Lab 1B, Step 6.)
+
 ---
 
 ### Step 3: Save Your Bucket Name as a Variable
@@ -190,7 +198,7 @@ aws s3 mb s3://$BUCKET --region us-east-1
 
 **Step 4b: Create the confidential file**
 
-Open your text editor and create a **new, empty file**. 📋 Copy and paste this into it:
+In the VS Code file tree, create a **New File** named `employee-salaries.txt`. 📋 Copy and paste this into it:
 
 ```
 CONFIDENTIAL - HR Department
@@ -205,7 +213,7 @@ Alex Johnson    | DevOps Engineer   | $130,000
 This document is classified INTERNAL ONLY.
 ```
 
-**Save the file as `employee-salaries.txt`** in your `workshop-lab-6a` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 **Step 4c: Upload it to your bucket**
 
@@ -235,7 +243,7 @@ Each team's Lambda function runs under its own IAM role. Right now, both roles w
 
 **Step 5a: Create the trust policy**
 
-Open your text editor and create a **new, empty file**. 📋 Copy and paste:
+In the VS Code file tree, create a **New File** named `trust-policy.json`. 📋 Copy and paste this entire block into it:
 
 ```json
 {
@@ -252,7 +260,7 @@ Open your text editor and create a **new, empty file**. 📋 Copy and paste:
 }
 ```
 
-**Save the file as `trust-policy.json`** in your `workshop-lab-6a` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 > **What does this file do?** It tells AWS "Lambda functions are allowed to use this role."
 
@@ -310,7 +318,7 @@ Both functions run the same code — they try to read the salary file from S3. T
 
 **Step 6a: Create the Lambda function code**
 
-Open your text editor and create a **new, empty file**. 📋 Copy and paste this entire code block:
+In the VS Code file tree, create a **New File** named `s3_reader.py`. 📋 Copy and paste this entire code block into it:
 
 ```python
 import json
@@ -335,7 +343,7 @@ def lambda_handler(event, context):
         }
 ```
 
-**Save the file as `s3_reader.py`** in your `workshop-lab-6a` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 > **What does this function do?** It tries to read a file from S3. If it succeeds, it returns the file contents with "ACCESS GRANTED." If it fails (because of a Deny policy), it returns "ACCESS DENIED" with the error message.
 
@@ -409,10 +417,10 @@ Let's prove that the Analytics team (who should NOT see salary data) can read it
 
 **Step 7a: Create the test payload**
 
-Open your text editor and create a **new file**. 📋 Copy and paste this, **replacing `BUCKET_NAME_HERE`** with your actual bucket name:
+In the VS Code file tree, create a **New File** named `read-payload.json`. 📋 Copy and paste this into it, **replacing `<YOUR_UNIQUE_BUCKET_NAME>`** with your actual bucket name:
 
 ```json
-{"bucket": "BUCKET_NAME_HERE", "key": "employee-salaries.txt"}
+{"bucket": "<YOUR_UNIQUE_BUCKET_NAME>", "key": "employee-salaries.txt"}
 ```
 
 For example, if your bucket is `jane-doe-waf-lab6a`:
@@ -420,7 +428,7 @@ For example, if your bucket is `jane-doe-waf-lab6a`:
 {"bucket": "jane-doe-waf-lab6a", "key": "employee-salaries.txt"}
 ```
 
-**Save as `read-payload.json`** in your `workshop-lab-6a` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 **Step 7b: Test the HR Team function**
 
@@ -433,7 +441,7 @@ aws lambda invoke --function-name workshop-hr-reader --payload file://read-paylo
 
 **macOS / Linux:**
 ```bash
-aws lambda invoke --function-name workshop-hr-reader --payload file://read-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 hr-response.json; echo "=== HR TEAM RESULT ===" cat hr-response.json
+aws lambda invoke --function-name workshop-hr-reader --payload file://read-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 hr-response.json; echo "=== HR TEAM RESULT ==="; cat hr-response.json
 ```
 
 **✅ You should see:**
@@ -459,7 +467,7 @@ aws lambda invoke --function-name workshop-analytics-reader --payload file://rea
 
 **macOS / Linux:**
 ```bash
-aws lambda invoke --function-name workshop-analytics-reader --payload file://read-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 analytics-response.json; echo "=== ANALYTICS TEAM RESULT ===" cat analytics-response.json
+aws lambda invoke --function-name workshop-analytics-reader --payload file://read-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 analytics-response.json; echo "=== ANALYTICS TEAM RESULT ==="; cat analytics-response.json
 ```
 
 **✅ You should see:**
@@ -482,7 +490,7 @@ You will add a bucket policy that **explicitly denies** access to everyone EXCEP
 
 **Step 8a: Create the restrictive bucket policy**
 
-Open your text editor and create a **new, empty file**. 📋 Copy and paste this, **replacing `<BUCKET_NAME>` with your bucket name** and **replacing `<ACCOUNT_ID>` with your 12-digit account ID** (in both places):
+In the VS Code file tree, create a **New File** named `restrict-policy.json`. 📋 Copy and paste this into it, **replacing `<YOUR_UNIQUE_BUCKET_NAME>` with your bucket name** and **replacing `<YOUR_ACCOUNT_ID>` with your 12-digit account ID** (in both places):
 
 ```json
 {
@@ -493,12 +501,12 @@ Open your text editor and create a **new, empty file**. 📋 Copy and paste this
             "Effect": "Deny",
             "Principal": "*",
             "Action": "s3:GetObject",
-            "Resource": "arn:aws:s3:::<BUCKET_NAME>/*",
+            "Resource": "arn:aws:s3:::<YOUR_UNIQUE_BUCKET_NAME>/*",
             "Condition": {
                 "StringNotLike": {
                     "aws:PrincipalArn": [
-                        "arn:aws:iam::<ACCOUNT_ID>:role/workshop-hr-team-role",
-                        "arn:aws:iam::<ACCOUNT_ID>:role/AWSReservedSSO_AdministratorAccess_*"
+                        "arn:aws:iam::<YOUR_ACCOUNT_ID>:role/workshop-hr-team-role",
+                        "arn:aws:iam::<YOUR_ACCOUNT_ID>:role/AWSReservedSSO_AdministratorAccess_*"
                     ]
                 }
             }
@@ -508,12 +516,12 @@ Open your text editor and create a **new, empty file**. 📋 Copy and paste this
 ```
 
 **Replace in 2 places:**
-1. Replace `<BUCKET_NAME>` with your bucket name (e.g., `jane-doe-waf-lab6a`)
-2. Replace `<ACCOUNT_ID>` with your account ID (e.g., `123456789012`) — this appears **twice** in the file
+1. Replace `<YOUR_UNIQUE_BUCKET_NAME>` with your bucket name (e.g., `jane-doe-waf-lab6a`)
+2. Replace `<YOUR_ACCOUNT_ID>` with your account ID (e.g., `123456789012`) — this appears **twice** in the file
 
-**Save the file as `restrict-policy.json`** in your `workshop-lab-6a` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
-> **⚠️ Common mistakes:** Make sure you replaced ALL instances of `<BUCKET_NAME>` (1 place) and `<ACCOUNT_ID>` (2 places). The account ID must be exactly 12 digits with no dashes.
+> **⚠️ Common mistakes:** Make sure you replaced ALL instances of `<YOUR_UNIQUE_BUCKET_NAME>` (1 place) and `<YOUR_ACCOUNT_ID>` (2 places). The account ID must be exactly 12 digits with no dashes.
 
 > **What does this policy do?** Let's break it down:
 >
@@ -559,7 +567,7 @@ aws lambda invoke --function-name workshop-hr-reader --payload file://read-paylo
 
 **macOS / Linux:**
 ```bash
-aws lambda invoke --function-name workshop-hr-reader --payload file://read-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 hr-response2.json; echo "=== HR TEAM (AFTER POLICY) ===" cat hr-response2.json
+aws lambda invoke --function-name workshop-hr-reader --payload file://read-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 hr-response2.json; echo "=== HR TEAM (AFTER POLICY) ==="; cat hr-response2.json
 ```
 
 **✅ You should see:** `200` — ACCESS GRANTED. The HR team can still read the file because they are in the exception list.
@@ -575,7 +583,7 @@ aws lambda invoke --function-name workshop-analytics-reader --payload file://rea
 
 **macOS / Linux:**
 ```bash
-aws lambda invoke --function-name workshop-analytics-reader --payload file://read-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 analytics-response2.json; echo "=== ANALYTICS TEAM (AFTER POLICY) ===" cat analytics-response2.json
+aws lambda invoke --function-name workshop-analytics-reader --payload file://read-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 analytics-response2.json; echo "=== ANALYTICS TEAM (AFTER POLICY) ==="; cat analytics-response2.json
 ```
 
 **✅ You should see:**
@@ -1005,6 +1013,8 @@ aws s3 rb s3://$BUCKET
 **✅ You should see:** `remove_bucket: <your bucket>`
 
 ### Step 5: Delete Local Files
+
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-6a` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
 
 **Windows (PowerShell):**
 ```powershell
