@@ -658,6 +658,8 @@ Metrics published to CloudWatch dashboard.
 >
 > This is your "before" number. Your dashboard now has its first data point.
 
+> **⚠️ These are *modeled* estimates, not your real bill.** The calculator uses assumed traffic — 1,000,000 invocations/month and ~500 MB of new logs/month — to project a cost. Your actual charges depend on real usage: check **AWS Cost Explorer** for what you've truly spent, and set an **AWS Budget** to get alerted before costs climb. This projection is a *decision tool* for comparing configurations, not a billing statement.
+
 **Step 8c: ✅ Console Checkpoint — View the "Before" Cost on Your Dashboard**
 
 1. Go back to your **Workshop-WAF-CostOptimization** dashboard in CloudWatch
@@ -939,6 +941,8 @@ Across Labs 6A, 6B, and 6C, you have now applied every pillar of the Well-Archit
 | Operational Excellence | 6B | CloudWatch Alarm → email alert on crash |
 | Cost Optimization | 6C | Graviton + log retention → 33% projected savings |
 | Sustainability | 6C | Same changes → less energy per computation + less stored data |
+
+> **💡 Real-world caveat: the pillars pull against each other.** In this lab, cost and sustainability lined up neatly — the same changes saved money *and* energy. That won't always happen. More reliability (multi-AZ, backups) and more security (encryption, isolation) usually cost more; the fastest option is rarely the cheapest. Well-Architected isn't about maxing out every pillar — it's about making **deliberate trade-offs** that fit your business priorities. The framework's job is to make those trade-offs *visible* so you choose them on purpose.
 
 ---
 
