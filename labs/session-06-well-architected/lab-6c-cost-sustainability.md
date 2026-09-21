@@ -30,7 +30,7 @@ You will build a **custom Cost Projection Dashboard** that calculates and displa
 
 - ✅ Completed **Lab 1A** (AWS CLI installed and configured)
 - ✅ AWS CLI authenticated — run `aws sts get-caller-identity` and confirm it returns your account info
-- ✅ A text editor for creating files
+- ✅ **VS Code** installed (from Lab 1B) — any text editor works, but these labs assume VS Code
 - ✅ A web browser (to view the CloudWatch Dashboard)
 
 ---
@@ -131,13 +131,21 @@ cd ~/Desktop/workshop-lab-6c
 
 > **💡 From now on, save ALL files you create in this lab to this folder.**
 
+**Open the folder in VS Code.** 📋 Copy and paste:
+
+```
+code .
+```
+
+> This opens VS Code with `workshop-lab-6c` as its **file tree**, so the JSON files and the Lambda code you create land in the right place. (You set up the `code` command in Lab 1B — if you see `'code' is not recognized`, close and reopen your terminal, or revisit Lab 1B, Step 6.)
+
 ---
 
 ### Step 3: Create the IAM Role
 
 Both Lambda functions in this lab will use the same role. It needs permission to run Lambda, write logs, read Lambda configurations, and publish CloudWatch metrics.
 
-**Step 3a:** Open your text editor and create a **new, empty file**. 📋 Copy and paste this into the file:
+**Step 3a:** In the VS Code file tree, create a **New File** named `trust-policy.json`. 📋 Copy and paste this entire block into it:
 
 ```json
 {
@@ -154,7 +162,7 @@ Both Lambda functions in this lab will use the same role. It needs permission to
 }
 ```
 
-**Save the file as `trust-policy.json`** in your `workshop-lab-6c` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 > **What does this file do?** It tells AWS "Lambda functions are allowed to use this role." This is the same trust policy from Lab 6B.
 
@@ -199,7 +207,7 @@ aws iam attach-role-policy --role-name workshop-waf-cost-role --policy-arn arn:a
 
 This is the same prime-number workload from Lab 6B, deployed with the default x86_64 architecture. You will measure its performance and cost, then improve it later.
 
-**Step 4a:** Open your text editor and create a **new, empty file**. 📋 Copy and paste this entire code block:
+**Step 4a:** In the VS Code file tree, create a **New File** named `workload_function.py`. 📋 Copy and paste this entire code block into it:
 
 ```python
 import json
@@ -233,9 +241,9 @@ def lambda_handler(event, context):
     }
 ```
 
-**Save the file as `workload_function.py`** in your `workshop-lab-6c` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
-> **⚠️ Common mistakes:** Make sure the file extension is `.py` (not `.py.txt`). Make sure there are no extra spaces at the beginning.
+> **⚠️ Common mistakes:** Make sure the file is named `workload_function.py` (not `workload_function.py.txt`). Make sure there are no extra spaces at the beginning.
 
 > **What does this function do?** It calculates prime numbers — CPU-intensive work that takes measurable time. It reports back the memory allocated and how long the computation took. You will use these numbers for cost projections.
 
@@ -282,13 +290,13 @@ aws lambda create-function \
 
 ### Step 5: Test the Workload and Measure Performance
 
-**Step 5a:** Open your text editor and create a **new file**. 📋 Copy and paste:
+**Step 5a:** In the VS Code file tree, create a **New File** named `workload-payload.json`. 📋 Copy and paste this into it:
 
 ```json
 {"workload_size": 50000}
 ```
 
-**Save as `workload-payload.json`** in your `workshop-lab-6c` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 **Step 5b: Invoke the function**
 
@@ -301,7 +309,7 @@ aws lambda invoke --function-name workshop-waf-cost-workload --payload file://wo
 
 **macOS / Linux:**
 ```bash
-aws lambda invoke --function-name workshop-waf-cost-workload --payload file://workload-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 response.json; echo "=== WORKLOAD RESULT ===" cat response.json
+aws lambda invoke --function-name workshop-waf-cost-workload --payload file://workload-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 response.json; echo "=== WORKLOAD RESULT ==="; cat response.json
 ```
 
 **✅ You should see something like:**
@@ -323,7 +331,7 @@ aws lambda invoke --function-name workshop-waf-cost-workload --payload file://wo
 
 This is the key piece of the lab. The cost calculator reads the **real current configuration** of your workload Lambda and your log group, then calculates a **projected monthly cost** based on published AWS prices. It publishes that projection as a custom CloudWatch metric so your dashboard can graph it.
 
-**Step 6a:** Open your text editor and create a **new, empty file**. 📋 Copy and paste this entire code block:
+**Step 6a:** In the VS Code file tree, create a **New File** named `cost_calculator.py`. 📋 Copy and paste this entire code block into it:
 
 ```python
 import json
@@ -441,9 +449,9 @@ def lambda_handler(event, context):
     }
 ```
 
-**Save the file as `cost_calculator.py`** in your `workshop-lab-6c` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
-> **⚠️ Common mistakes:** Make sure the file extension is `.py` (not `.py.txt`). Make sure there are no extra spaces at the beginning of lines.
+> **⚠️ Common mistakes:** Make sure the file is named `cost_calculator.py` (not `cost_calculator.py.txt`). Make sure there are no extra spaces at the beginning of lines.
 
 > **What does this function do?**
 > - Reads the real configuration of your workload Lambda (memory size, architecture)
@@ -494,7 +502,7 @@ aws lambda create-function \
 
 Before running the calculator, let's create the dashboard so it's ready to display data as soon as you publish your first metric.
 
-**Step 7a:** Open your text editor and create a **new, empty file**. 📋 Copy and paste this entire JSON block:
+**Step 7a:** In the VS Code file tree, create a **New File** named `dashboard.json`. 📋 Copy and paste this entire JSON block into it:
 
 ```json
 {
@@ -554,7 +562,7 @@ Before running the calculator, let's create the dashboard so it's ready to displ
 }
 ```
 
-**Save the file as `dashboard.json`** in your `workshop-lab-6c` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 > **What does this file do?** It defines a CloudWatch dashboard with three widgets:
 > - **Projected Monthly Cost** — your custom cost projections as a time-series graph (this is the one you'll watch drop)
@@ -595,7 +603,7 @@ An empty list means the dashboard was created successfully with no errors.
 
 Now run the calculator to measure the projected cost of your current (wasteful) configuration.
 
-**Step 8a:** Open your text editor and create a **new file**. 📋 Copy and paste this, **replacing `<DURATION_MS>`** with the typical duration you recorded in Step 5 (just the number, no "ms"):
+**Step 8a:** In the VS Code file tree, create a **New File** named `calculator-payload.json`. 📋 Copy and paste this into it, **replacing `<DURATION_MS>`** with the typical duration you recorded in Step 5 (just the number, no "ms"):
 
 ```json
 {"avg_duration_ms": <DURATION_MS>}
@@ -606,7 +614,7 @@ For example, if your duration was 363 ms, the file would contain:
 {"avg_duration_ms": 363}
 ```
 
-**Save as `calculator-payload.json`** in your `workshop-lab-6c` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 **Step 8b: Invoke the cost calculator**
 
@@ -619,7 +627,7 @@ aws lambda invoke --function-name workshop-waf-cost-calculator --payload file://
 
 **macOS / Linux:**
 ```bash
-aws lambda invoke --function-name workshop-waf-cost-calculator --payload file://calculator-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 calc-response.json; echo "=== COST PROJECTION (BEFORE) ===" cat calc-response.json
+aws lambda invoke --function-name workshop-waf-cost-calculator --payload file://calculator-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 calc-response.json; echo "=== COST PROJECTION (BEFORE) ==="; cat calc-response.json
 ```
 
 **✅ You should see something like:**
@@ -707,7 +715,7 @@ aws lambda invoke --function-name workshop-waf-cost-workload --payload file://wo
 
 **macOS / Linux:**
 ```bash
-aws lambda invoke --function-name workshop-waf-cost-workload --payload file://workload-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 response-arm64.json; echo "=== WORKLOAD RESULT (arm64 Graviton) ===" cat response-arm64.json
+aws lambda invoke --function-name workshop-waf-cost-workload --payload file://workload-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 response-arm64.json; echo "=== WORKLOAD RESULT (arm64 Graviton) ==="; cat response-arm64.json
 ```
 
 **✅ You should see something like:**
@@ -728,13 +736,13 @@ aws lambda invoke --function-name workshop-waf-cost-workload --payload file://wo
 
 Now update your calculator payload with the new duration and re-run it.
 
-**Step 11a:** Open `calculator-payload.json` in your text editor. **Replace** the duration with your new Graviton duration. For example:
+**Step 11a:** Open `calculator-payload.json` in VS Code (click it in the file tree). **Replace** the duration with your new Graviton duration. For example:
 
 ```json
 {"avg_duration_ms": 322}
 ```
 
-**Save the file.**
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 **Step 11b: Run the calculator again**
 
@@ -747,7 +755,7 @@ aws lambda invoke --function-name workshop-waf-cost-calculator --payload file://
 
 **macOS / Linux:**
 ```bash
-aws lambda invoke --function-name workshop-waf-cost-calculator --payload file://calculator-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 calc-response2.json; echo "=== COST PROJECTION (AFTER GRAVITON) ===" cat calc-response2.json
+aws lambda invoke --function-name workshop-waf-cost-calculator --payload file://calculator-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 calc-response2.json; echo "=== COST PROJECTION (AFTER GRAVITON) ==="; cat calc-response2.json
 ```
 
 **✅ You should see the compute cost drop significantly:**
@@ -861,7 +869,7 @@ aws lambda invoke --function-name workshop-waf-cost-calculator --payload file://
 
 **macOS / Linux:**
 ```bash
-aws lambda invoke --function-name workshop-waf-cost-calculator --payload file://calculator-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 calc-response3.json; echo "=== COST PROJECTION (AFTER RETENTION FIX) ===" cat calc-response3.json
+aws lambda invoke --function-name workshop-waf-cost-calculator --payload file://calculator-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 calc-response3.json; echo "=== COST PROJECTION (AFTER RETENTION FIX) ==="; cat calc-response3.json
 ```
 
 **✅ You should see the logs cost drop dramatically:**
@@ -1048,6 +1056,8 @@ aws iam delete-role --role-name workshop-waf-cost-role
 **✅ No output means success for each.**
 
 ### Step 5: Delete Local Files
+
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-6c` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
 
 **Windows (PowerShell):**
 ```powershell
