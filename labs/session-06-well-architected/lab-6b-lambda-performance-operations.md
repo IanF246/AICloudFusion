@@ -401,6 +401,8 @@ Primes found: 5133 (up to 50000)
 
 ## PART 2 — Operational Excellence Pillar
 
+> **🔗 This pillar runs through the rest of the course.** One alarm is the entry point to Operational Excellence — "know when things break." You'll go much deeper soon: **Infrastructure as Code (Session 7)**, **CI/CD (Session 8)**, and **monitoring & observability (Session 9)** are all Operational-Excellence practices. Here you build the reflex: make failure *visible automatically* instead of waiting for a customer complaint.
+
 ### Step 9: 🚨 SEE THE PROBLEM — Silent Failures
 
 When your function crashes, what happens? Let's find out.
