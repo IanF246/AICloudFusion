@@ -50,6 +50,8 @@ Before we start, here is what each concept means:
 - **Security pillar** — "Protect data, systems, and assets." This includes controlling who can access your data using the principle of **least privilege** — give each role only the permissions it needs, nothing more.
 - **Reliability pillar** — "Ensure a workload performs its function correctly and recovers from failure." This includes protecting against accidental data loss.
 
+> **💡 The WAF is a review *process*, not a one-time checklist.** Each pillar is a set of questions you ask about a workload — "who can access this?", "what happens if this fails?", "what does this cost?" — so you can spot risks and prioritize fixes. AWS provides a free console tool, the **AWS Well-Architected Tool**, that walks you through those questions for a real workload and produces an improvement plan. Session 6 has you practice the core loop by hand: **see a risk → fix it → verify the improvement**, one pillar at a time.
+
 **Least Privilege** means giving each user, role, or service the absolute minimum permissions needed to do its job. If the Analytics team doesn't need salary data, they shouldn't be able to read it — even if they have general S3 read access.
 
 **Bucket Policy** is a JSON document attached to an S3 bucket that controls who can access the files. You can use it to explicitly **Deny** access to certain roles, or **Allow** access only to specific roles. An explicit Deny always wins over an Allow.
@@ -411,6 +413,8 @@ aws lambda create-function \
 
 ## PART 1 — The Security Pillar
 
+> **🔗 You've already been building this pillar.** The entire **Security track (Sessions 3–5)** — least-privilege IAM, explicit Deny beating Allow, CloudTrail, GuardDuty — was the Security pillar in practice. This lab adds one more layer: control at the **data layer** (a policy on the bucket itself), so access doesn't depend on IAM permissions alone.
+
 ### Step 7: 🚨 SEE THE PROBLEM — Both Teams Can Read Confidential Data
 
 Let's prove that the Analytics team (who should NOT see salary data) can read it.
@@ -604,11 +608,15 @@ ACCESS DENIED - An error occurred (AccessDenied) when calling the GetObject oper
 
 > **💡 Key insight:** In Lab 1C, you learned about public vs. private access. But real-world security is more nuanced — it's not just "can the internet see it?" but "which specific roles within your own company can see it?" A bucket policy with Conditions lets you answer that question precisely.
 
+> **💡 In production you'd go further.** Access control is one of three core Security-pillar controls for S3. You'd also encrypt data **at rest** (`SSE-KMS`) and require encrypted **transport** (deny requests where `aws:SecureTransport` is false). This lab covers the first; the other two are single-policy additions built on the same idea.
+
 ---
 
 ## PART 2 — The Reliability Pillar
 
 Now you will see why **versioning** matters for the Reliability pillar. First you will experience permanent data loss (no versioning), then you will see how versioning protects you.
+
+> **💡 Versioning is *one* reliability tool, not the whole pillar.** Reliability also covers running across multiple Availability Zones, automated backups and recovery, and designing to a target recovery time (RTO) and recovery point (RPO). Here you focus on protecting a single object from accidental loss — the simplest, most common reliability win.
 
 ### Step 10: 🚨 SEE THE PROBLEM — Delete Without Versioning
 
