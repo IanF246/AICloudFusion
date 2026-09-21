@@ -25,7 +25,7 @@ The same **feedback loop** pattern as Lab 6A: you will first see the bad state, 
 
 - ✅ Completed **Lab 1A** (AWS CLI installed and configured)
 - ✅ AWS CLI authenticated — run `aws sts get-caller-identity` and confirm it returns your account info
-- ✅ A text editor for creating files
+- ✅ **VS Code** installed (from Lab 1B) — any text editor works, but these labs assume VS Code
 - ✅ An email address you can check during this lab (for the alert notification)
 
 ---
@@ -127,11 +127,19 @@ cd ~/Desktop/workshop-lab-6b
 
 > **💡 From now on, save ALL files you create in this lab to this folder.**
 
+**Open the folder in VS Code.** 📋 Copy and paste:
+
+```
+code .
+```
+
+> This opens VS Code with `workshop-lab-6b` as its **file tree**, so the JSON files and the Lambda code you create land in the right place. (You set up the `code` command in Lab 1B — if you see `'code' is not recognized`, close and reopen your terminal, or revisit Lab 1B, Step 6.)
+
 ---
 
 ### Step 3: Create the Lambda IAM Role
 
-**Step 3a:** Open your text editor and create a **new, empty file**. 📋 Copy and paste this into the file:
+**Step 3a:** In the VS Code file tree, create a **New File** named `trust-policy.json`. 📋 Copy and paste this entire block into it:
 
 ```json
 {
@@ -148,7 +156,7 @@ cd ~/Desktop/workshop-lab-6b
 }
 ```
 
-**Save the file as `trust-policy.json`** in your `workshop-lab-6b` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 **Step 3b:** Create the role and attach the logging policy.
 
@@ -177,7 +185,7 @@ This function does two things:
 - Calculates prime numbers (CPU-intensive work that shows performance differences)
 - Crashes on purpose when it receives `{"action": "crash"}` (for the Operational Excellence section)
 
-**Step 4a:** Open your text editor and create a **new, empty file**. 📋 Copy and paste this entire code block:
+**Step 4a:** In the VS Code file tree, create a **New File** named `workload_function.py`. 📋 Copy and paste this entire code block into it:
 
 ```python
 import json
@@ -221,9 +229,9 @@ def lambda_handler(event, context):
     }
 ```
 
-**Save the file as `workload_function.py`** in your `workshop-lab-6b` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
-> **⚠️ Common mistakes:** Make sure the file extension is `.py` (not `.py.txt`). Make sure there are no extra spaces at the beginning.
+> **⚠️ Common mistakes:** Make sure the file is named `workload_function.py` (not `workload_function.py.txt`). Make sure there are no extra spaces at the beginning.
 
 > **What does this function do?**
 > - It calculates prime numbers up to 50,000 — this is CPU-bound work that takes measurable time
@@ -278,13 +286,13 @@ aws lambda create-function \
 
 ### Step 6: 🚨 SEE THE PROBLEM — Slow Performance at 128 MB
 
-First, create the test payload file. **Step 6a:** Open your text editor and create a **new file**. 📋 Copy and paste:
+First, create the test payload file. **Step 6a:** In the VS Code file tree, create a **New File** named `workload-payload.json`. 📋 Copy and paste this into it:
 
 ```json
 {"workload_size": 50000}
 ```
 
-**Save as `workload-payload.json`** in your `workshop-lab-6b` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 **Step 6b: Invoke the function and measure performance**
 
@@ -297,7 +305,7 @@ aws lambda invoke --function-name workshop-waf-workload --payload file://workloa
 
 **macOS / Linux:**
 ```bash
-aws lambda invoke --function-name workshop-waf-workload --payload file://workload-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 response.json; echo "=== RESULT (128 MB Memory) ==="cat response.json
+aws lambda invoke --function-name workshop-waf-workload --payload file://workload-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 response.json; echo "=== RESULT (128 MB Memory) ==="; cat response.json
 ```
 
 **✅ You should see something like:**
@@ -353,7 +361,7 @@ aws lambda invoke --function-name workshop-waf-workload --payload file://workloa
 
 **macOS / Linux:**
 ```bash
-aws lambda invoke --function-name workshop-waf-workload --payload file://workload-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 response.json; echo "=== RESULT (256 MB Memory) ===" cat response.json
+aws lambda invoke --function-name workshop-waf-workload --payload file://workload-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 response.json; echo "=== RESULT (256 MB Memory) ==="; cat response.json
 ```
 
 **✅ You should see something like:**
@@ -399,13 +407,13 @@ When your function crashes, what happens? Let's find out.
 
 **Step 9a: Create the crash payload**
 
-Open your text editor and create a **new file**. 📋 Copy and paste:
+In the VS Code file tree, create a **New File** named `crash-payload.json`. 📋 Copy and paste this into it:
 
 ```json
 {"action": "crash"}
 ```
 
-**Save as `crash-payload.json`** in your `workshop-lab-6b` folder.
+**Save** the file (**Ctrl+S** / **Cmd+S**).
 
 **Step 9b: Invoke with the crash payload**
 
@@ -418,7 +426,7 @@ aws lambda invoke --function-name workshop-waf-workload --payload file://crash-p
 
 **macOS / Linux:**
 ```bash
-aws lambda invoke --function-name workshop-waf-workload --payload file://crash-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 crash-response.json; echo "=== CRASH RESULT ===" cat crash-response.json
+aws lambda invoke --function-name workshop-waf-workload --payload file://crash-payload.json --cli-binary-format raw-in-base64-out --region us-east-1 crash-response.json; echo "=== CRASH RESULT ==="; cat crash-response.json
 ```
 
 **✅ You should see:**
@@ -697,6 +705,8 @@ aws iam delete-role --role-name workshop-waf-lambda-role
 **✅ No output means success for each.**
 
 ### Step 6: Delete Local Files
+
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-6b` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
 
 **Windows (PowerShell):**
 ```powershell
