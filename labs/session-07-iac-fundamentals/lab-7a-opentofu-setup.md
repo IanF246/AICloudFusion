@@ -38,11 +38,11 @@ In this lab, you will set up a **complete Infrastructure as Code (IaC) environme
 
 | Service | What It Is | Cost |
 |---------|-----------|------|
-| Amazon S3 | State file storage | 0.023 per GB/Month |
-| Amazon DynamoDB | State lock table | 0.25 per GB/Month + 100k Write/Reads at ~ 0.08 |
+| Amazon S3 | State file storage | $0.023 per GB/month (the state file is under 1 MB) |
+| Amazon DynamoDB | State lock table | On-demand (PAY_PER_REQUEST): $1.25 per 1M writes, $0.25 per 1M reads, $0.25 per GB/month storage — this lab makes only a handful of lock requests |
 | AWS IAM | Role for OpenTofu | Always Free |
 
-**Estimated cost for this lab: $0.10**
+**Estimated cost for this lab: less than $0.01** (effectively free — a few DynamoDB lock requests and under 1 MB of state storage)
 
 > **⚠️ Note:** The state backend (S3 bucket + DynamoDB table) and the IAM role you create in this lab are **kept after the lab ends** — they are the foundation for Labs 7B and 7C. Only the "test" S3 bucket deployed in the final step is destroyed.
 
@@ -75,7 +75,7 @@ Commands are inside gray code boxes. **📋 Copy and paste** them into your term
 | Placeholder | What to Replace It With | Example |
 |-------------|------------------------|---------|
 | `<YOUR_PROFILE_NAME>` | Your AWS CLI profile name from Lab 1A | `AdministratorAccess-123456789012` |
-| `<ACCOUNT_ID>` | Your 12-digit AWS account number | `123456789012` |
+| `<YOUR_ACCOUNT_ID>` | Your 12-digit AWS account number | `123456789012` |
 | `<INITIALS>` | Your first and last name initials | `if` |
 
 ---
@@ -176,12 +176,10 @@ $env:Path += ";C:\OpenTofu"
 ```
 
 > **What do these commands do?**
-> 1. Downloads the OpenTofu zip file
-> 2. Extracts it to a temp folder
-> 3. Creates a permanent folder at `C:\tofu`
-> 4. Copies the executable there
-> 5. Adds `C:\tofu` to your PATH permanently (so future terminals find it)
-> 6. Adds it to the current terminal's PATH (so it works right now)
+> 1. Download the OpenTofu zip into your current folder
+> 2. Extract it to `C:\OpenTofu`
+> 3. Add `C:\OpenTofu` to your PATH for the **current** terminal (so `tofu` works right now)
+> 4. Add `C:\OpenTofu` to your PATH **permanently** (so new terminals find it — open a fresh terminal after this one)
 
 **macOS (Homebrew):**
 
@@ -194,7 +192,7 @@ brew install opentofu
 **macOS / Linux (manual download):**
 
 ```bash
-curl -Lo /tmp/tofu.zip "https://github.com/opentofu/opentofu/releases/download/v1.9.1/tofu_1.12.3_$(uname -s | tr '[:upper:]' '[:lower:]')_amd64.zip"
+curl -Lo /tmp/tofu.zip "https://github.com/opentofu/opentofu/releases/download/v1.12.3/tofu_1.12.3_$(uname -s | tr '[:upper:]' '[:lower:]')_amd64.zip"
 sudo unzip -o /tmp/tofu.zip -d /usr/local/bin/ tofu
 ```
 
@@ -338,7 +336,7 @@ Instead of running OpenTofu with your full admin credentials, you will create a 
 
 In VS Code's Explorer panel, **right-click the `workshop-iac` folder** (the top-level one) → **New File** → name it exactly `tofu-trust-policy.json` → press Enter.
 
-📋 Copy and paste this into the file, **replacing `<ACCOUNT_ID>`** with your 12-digit account ID (the one you wrote down in Step 1):
+📋 Copy and paste this into the file, **replacing `<YOUR_ACCOUNT_ID>`** with your 12-digit account ID (the one you wrote down in Step 1):
 
 ```json
 {
@@ -347,7 +345,7 @@ In VS Code's Explorer panel, **right-click the `workshop-iac` folder** (the top-
         {
             "Effect": "Allow",
             "Principal": {
-                "AWS": "arn:aws:iam::<ACCOUNT_ID>:root"
+                "AWS": "arn:aws:iam::<YOUR_ACCOUNT_ID>:root"
             },
             "Action": "sts:AssumeRole"
         }
@@ -355,9 +353,9 @@ In VS Code's Explorer panel, **right-click the `workshop-iac` folder** (the top-
 }
 ```
 
-**Replace `<ACCOUNT_ID>` in 1 place**, then **save the file (Ctrl+S / Cmd+S)**.
+**Replace `<YOUR_ACCOUNT_ID>` in 1 place**, then **save the file (Ctrl+S / Cmd+S)**.
 
->[!Warning]
+>[!WARNING]
 > **Double-check:** The file name is `tofu-trust-policy.json` — not `.json.txt`. In VS Code, look at the file tab at the top; it should say `tofu-trust-policy.json`.
 
 > **What does this file do?** It says "any identity in my AWS account can assume this role." Since you are the only person in your account, this effectively means "I can assume this role." In a team environment, you would restrict this further to specific users or CI/CD roles.
@@ -380,7 +378,7 @@ The deploy role needs permission to manage the resources OpenTofu will create (S
 
 **Step 8a:** In VS Code's Explorer panel, **right-click the `workshop-iac` folder** → **New File** → name it exactly `tofu-permissions.json` → press Enter.
 
-📋 Copy and paste this into the file, **replacing `<ACCOUNT_ID>`** with your account ID:
+📋 Copy and paste this into the file, **replacing `<YOUR_ACCOUNT_ID>`** with your account ID:
 
 ```json
 {
@@ -403,15 +401,13 @@ The deploy role needs permission to manage the resources OpenTofu will create (S
                 "dynamodb:PutItem",
                 "dynamodb:DeleteItem"
             ],
-            "Resource": "arn:aws:dynamodb:us-east-1:<ACCOUNT_ID>:table/terraform-locks"
+            "Resource": "arn:aws:dynamodb:us-east-1:<YOUR_ACCOUNT_ID>:table/terraform-locks"
         }
     ]
 }
 ```
 
-**Replace `<ACCOUNT_ID>`** with your 12-digit account ID (1 place).
-
-**Save the file as `tofu-permissions.json`** in your `workshop-iac` folder.
+**Replace `<YOUR_ACCOUNT_ID>`** (1 place), then **save (Ctrl+S / Cmd+S)**.
 
 > **What does this file do?**
 > - `S3ManageWorkshopBuckets` — OpenTofu can create, read, update, and delete any S3 bucket whose name starts with `workshop-`. This covers both the state bucket and any buckets you deploy.
@@ -502,7 +498,7 @@ You will now create five files in the `infra/environments/dev/` folder. These ar
 
 **Step 10a: Create `backend.tf`** — tells OpenTofu where to store its state
 
->[!Note]
+>[!NOTE]
 > * **Remote state storage:** Defines where Terraform/Tofu keeps the state file (instead of locally on disk).
 > * **State locking:** Prevents multiple users from applying changes at the same time (avoid race conditions). 
 > * **Consistency:** Ensures every team member works against the same state snapshot. 
@@ -524,13 +520,13 @@ terraform {
 }
 ```
 
-**Save the file as `backend.tf`** in `infra/environments/dev/`.
-
 > **What does this file do?**
 > - `bucket` — the S3 bucket you created in Step 4 (stores the state file)
 > - `key` — the path within the bucket (`dev/` means each environment has its own state)
 > - `dynamodb_table` — the lock table from Step 5
 > - `encrypt` — the state file is encrypted at rest in S3
+
+> **💡 Newer alternative to `dynamodb_table`:** OpenTofu 1.11+ (and Terraform 1.11+) added **S3-native state locking** via `use_lockfile = true`, which stores the lock alongside the state in S3 and removes the need for a separate DynamoDB table. This lab uses the DynamoDB approach because it's the pattern you'll see most in existing codebases and on the SAA exam — but in a brand-new project you could drop the table and set `use_lockfile = true` instead.
 
 ---
 
@@ -564,8 +560,6 @@ variable "tofu_role_arn" {
 }
 ```
 
-**Save the file as `variables.tf`** in `infra/environments/dev/`.
-
 >[!NOTE]
 >**What does this file do?** It declares the inputs (variables) that this configuration needs. Think of it like function parameters — you define what inputs
 >are expected, and the actual values go in a separate file (`terraform.tfvars`).
@@ -576,16 +570,14 @@ variable "tofu_role_arn" {
 
 **Right-click the `dev` folder** → **New File** → name it exactly `terraform.tfvars` → press Enter.
 
-📋 Copy and paste this into the file, **replacing `<ACCOUNT_ID>`** (1 place), then **save (Ctrl+S)**:
+📋 Copy and paste this into the file, **replacing `<YOUR_ACCOUNT_ID>`** (1 place), then **save (Ctrl+S)**:
 
 ```hcl
 environment   = "dev"
 aws_region    = "us-east-1"
 project       = "workshop-iac"
-tofu_role_arn = "arn:aws:iam::<ACCOUNT_ID>:role/workshop-tofu-deploy-role"
+tofu_role_arn = "arn:aws:iam::<YOUR_ACCOUNT_ID>:role/workshop-tofu-deploy-role"
 ```
-
-**Save the file as `terraform.tfvars`** in `infra/environments/dev/`.
 
 >[!NOTE]
 >**What does this file do?** It provides the actual values for each variable. OpenTofu automatically reads this file when you run commands. Notice
@@ -597,7 +589,7 @@ tofu_role_arn = "arn:aws:iam::<ACCOUNT_ID>:role/workshop-tofu-deploy-role"
 
 **Right-click the `dev` folder** → **New File** → name it exactly `main.tf` → press Enter.
 
-📋 Copy and paste this into the file, then **save (Ctrl+S)**:
+📋 Copy and paste this into the file, **replacing `<INITIALS>`** (1 place, near the bottom), then **save (Ctrl+S)**:
 
 ```hcl
 terraform {
@@ -637,8 +629,6 @@ resource "aws_s3_bucket" "test" {
 }
 ```
 
-**Save the file as `main.tf`** in `infra/environments/dev/` and replace `<INITIALS>`.
-
 > **What does each section do?**
 >
 > | Section | Purpose |
@@ -670,8 +660,6 @@ output "test_bucket_arn" {
   value       = aws_s3_bucket.test.arn
 }
 ```
-
-**Save the file as `outputs.tf`** in `infra/environments/dev/`.
 
 > **What does this file do?** After `tofu apply` finishes, it prints these values so you know what was created. Outputs are also how one module passes information to another (you will use this in Lab 7B).
 
@@ -708,7 +696,6 @@ In a real project, this repo is version-controlled with Git (you will turn this 
 *.tfstate
 *.tfstate.backup
 *.tfplan
-.terraform.lock.hcl
 
 # Sensitive variable overrides
 *.auto.tfvars
@@ -722,7 +709,9 @@ Thumbs.db
 
 **Save the file as `.gitignore`** in the root `workshop-iac/` folder (not inside `infra/`).
 
-> **What does this file do?** It prevents you from accidentally committing state files (which may contain secrets), lock files, and OS junk to Git. The actual state lives safely in S3 — you never commit it to the repo.
+> **What does this file do?** It prevents you from accidentally committing state files (which may contain secrets), local plan/cache files, and OS junk to Git. The actual state lives safely in S3 — you never commit it to the repo.
+>
+> **💡 Note what is NOT ignored:** `.terraform.lock.hcl` (the dependency lock file) is deliberately left out of `.gitignore` so it **does** get committed. It pins the exact provider versions your project resolved, so every teammate — and your CI/CD pipeline in Session 8 — installs the identical AWS provider. Committing it is the OpenTofu/Terraform best practice.
 
 ---
 
@@ -1026,6 +1015,8 @@ git add .
 
 **✅ No output means success.**
 
+> **💡 Windows: you may see** `warning: LF will be replaced by CRLF...` for `.terraform.lock.hcl`. This is harmless — Git is just normalizing line endings on Windows (the file was generated with Unix-style line endings). Your files are staged correctly; continue.
+
 **Step 18c: Create the commit.**
 
 📋 Copy and paste:
@@ -1097,7 +1088,7 @@ The SAA exam tests:
 
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
-| `tofu` is not recognized | OpenTofu is not in your PATH | Close and reopen your terminal. On Windows, verify `C:\tofu\tofu.exe` exists. |
+| `tofu` is not recognized | OpenTofu is not in your PATH | Close and reopen your terminal. On Windows, verify `C:\OpenTofu\tofu.exe` exists. |
 | `No configuration files` / "no .tf files found" | Wrong folder, or files saved with the wrong extension | Run `pwd` — you must be in the `dev` folder. Check files are named exactly `main.tf` (not `main.tf.txt`). In VS Code the file tab shows the real name. |
 | Your file appears as `main.tf.txt` or `backend.tf.txt` | Notepad secretly added `.txt` | Recreate the file in VS Code (right-click the folder → New File → type the exact name). VS Code never adds hidden extensions. |
 | `Error configuring S3 Backend` | The state bucket name doesn't match | Open `backend.tf` and verify the bucket name matches exactly what you created in Step 4 |
@@ -1109,6 +1100,7 @@ The SAA exam tests:
 | `git: command not found` or not recognized | Git is not installed | Install Git from [git-scm.com](https://git-scm.com/downloads), then close and reopen your terminal |
 | `Author identity unknown` when committing | Git doesn't know your name/email yet | Run the two `git config` commands from Step 17c, then commit again |
 | `git init` says "reinitialized existing repository" | You already ran it — that's fine | No action needed; continue to the commit step |
+| `warning: LF will be replaced by CRLF` on `git add` | Git is normalizing line endings on Windows (harmless) | No action needed — files are still staged and the commit works. It usually appears for `.terraform.lock.hcl`, which was generated with Unix line endings. |
 
 ---
 
@@ -1169,6 +1161,8 @@ aws iam delete-role --role-name workshop-tofu-deploy-role
 ```
 
 **Step 4: Delete local files**
+
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-iac` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
 
 **Windows (PowerShell):**
 ```powershell
