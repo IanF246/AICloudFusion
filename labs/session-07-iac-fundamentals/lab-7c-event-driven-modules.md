@@ -39,7 +39,7 @@ By the end you will have a complete, wired system defined entirely in code, and 
 | Service | What It Is | Cost |
 |---------|-----------|------|
 | AWS Lambda | Serverless compute | Always Free: 1M requests/month |
-| Amazon S3 | Upload bucket | 0.02 per GB/Month |
+| Amazon S3 | Upload bucket | $0.023 per GB/month |
 | Amazon CloudWatch Logs | Function logs | Free within 5 GB/month |
 | AWS IAM | Lambda execution role | Always Free |
 
@@ -70,7 +70,6 @@ Files are created in **VS Code** (right-click the correct folder → New File �
 | Placeholder | What to Replace It With | Example |
 |-------------|------------------------|---------|
 | `<YOUR_PROFILE_NAME>` | Your AWS CLI profile name | `AdministratorAccess-123456789012` |
-| `<YOUR_ACCOUNT_ID>` | Your 12-digit AWS account number | `123456789012` |
 | `<INITIALS>` | Your first and last name initials | `if` |
 
 ---
@@ -326,8 +325,6 @@ provider "aws" {
   }
 }
 
-data "aws_caller_identity" "current" {}
-
 # ------------------------------------------------------------
 # Lambda function (via our reusable module)
 # ------------------------------------------------------------
@@ -381,6 +378,8 @@ resource "aws_s3_bucket_notification" "uploads" {
 > | `module.processor.function_arn` | Reads an **output** from your module — this is how the bucket finds the function |
 > | `depends_on` | Ensures the permission exists before the notification is created |
 
+> **💡 Notice what you did NOT do this lab: expand the deploy role.** In 7B you had to widen the role's permissions before deploying a Lambda. This lab adds a whole new bucket, a notification, and a cross-service permission — yet no permission step. That's because the scopes you set in 7B (`workshop-*` for S3, Lambda, IAM, and logs) were deliberately broad enough to cover future `workshop-` resources. Scoping to a naming prefix instead of one exact resource is a common real-world balance: tight enough to be least-privilege, loose enough that routine growth doesn't need a policy change every time.
+
 ---
 
 ### Step 5: Update `outputs.tf`
@@ -405,11 +404,7 @@ output "uploads_bucket" {
 
 ### Step 6: Re-Initialize (You Added a Module)
 
-If you are starting from a fresh CLI, set the path for Tofu again as shown in 7A:
-
-```
-$env:Path += ";C:\OpenTofu"
-```
+> **💡 Starting from a fresh terminal?** Two things don't carry between terminals. On **Windows**, if you didn't make the PATH change permanent in 7A, re-add OpenTofu: `$env:Path += ";C:\OpenTofu"`. And on **any OS**, re-set your AWS profile from Step 1 (`$env:AWS_PROFILE="..."` on Windows, `export AWS_PROFILE="..."` on Mac/Linux). If you've kept the same terminal since Step 1, skip this.
 
 Whenever you add a module, you must run `tofu init` again so OpenTofu loads it. 📋 From the project root:
 
@@ -444,6 +439,8 @@ bash infra/scripts/tofu.sh dev plan
 ```
 
 > **💡 If you completed 7B, expect both `add` and `destroy` lines — this is normal.** OpenTofu will remove your old standalone `workshop-dev-hello` function from 7B and create the new module-based `workshop-dev-processor` plus the S3 resources. You are *refactoring*: replacing the hand-written function with a modular, event-driven one. Don't worry about the exact counts — as long as the plan succeeds and lists the new `module.processor` resources and the S3 bucket/notification, you're on track.
+
+> **💡 Why a rebuild and not an in-place update?** Two things changed at once: the function **moved into a module** (its address went from `aws_lambda_function.hello` to `module.processor.aws_lambda_function.this`) *and* it was **renamed** (`workshop-dev-hello` → `workshop-dev-processor`). OpenTofu can't update across a rename — a new function name means a new function — so it destroys the old and creates the new. In production, when you're *only* relocating a resource into a module (same name, same settings), you avoid the destroy/recreate with a **`moved` block** or `tofu state mv`, which tells OpenTofu "this is the same resource, just at a new address." Here the rename makes a rebuild unavoidable — which is fine for a dev function with no data to lose.
 
 **Step 7b: Apply.** 📋 Copy and paste:
 
@@ -585,6 +582,8 @@ You built and tore down a complete event-driven architecture, defined entirely i
 - **Event-driven architectures are wiring** — a producer (S3), a permission, and a notification. OpenTofu makes that wiring explicit and repeatable.
 - **OpenTofu manages dependency order on both create and destroy** — you describe relationships; it figures out the sequence.
 
+> **💡 Where's staging, prod, and policies?** Back in Lab 7A you scaffolded `environments/staging`, `environments/prod`, and `policies/` — and this workshop only ever deployed to `dev`. That's intentional: the whole point of the structure is that **promoting to another environment is just a copy**. You'd copy `dev/`'s files into `staging/`/`prod/`, change `backend.tf`'s state `key` and the values in `terraform.tfvars` (names, sizes), and call the *same* `modules/lambda` — identical code, different inputs. The `policies/` folder is where policy-as-code (OPA/Sentinel rules like "no public S3 buckets") would live to block bad deployments before apply. You won't fill those in here, but your repo is already shaped for them — that's what "professional structure" buys you.
+
 > **💡 What persists:** Your `workshop-iac` repo and the state backend / deploy role remain. You destroyed the *application* resources in Step 9, but your foundation is intact for future work and Session 8 (CI/CD).
 
 ---
@@ -611,7 +610,7 @@ The SAA exam tests:
 | `Module not installed` when planning | You added the module but didn't re-init | Run the `init` command in Step 6 |
 | Upload succeeds but no log appears | Logs can take 10–30 seconds; or the trigger isn't wired | Wait and re-run the log command; confirm `tofu apply` created the notification |
 | `Error putting S3 notification: ... not authorized to perform: lambda:InvokeFunction` | The `aws_lambda_permission` wasn't created first | The `depends_on` handles this; re-run `apply` |
-| `BucketAlreadyExists` | The uploads bucket name is taken | It includes your account ID, so this is rare — if it happens, change the bucket name suffix in `main.tf` |
+| `BucketAlreadyExists` | The uploads bucket name is taken | The name ends in your `<INITIALS>`, which may not be globally unique — change that suffix in `main.tf` (add more characters, e.g. a number), then re-run `apply` |
 | `Error deleting S3 Bucket: BucketNotEmpty` | `force_destroy` missing | Confirm `force_destroy = true` is on the bucket, re-apply, then destroy |
 | `Error acquiring the state lock` | A previous command was interrupted | Run `tofu force-unlock <LOCK_ID>` (ID in the error) and retry |
 
