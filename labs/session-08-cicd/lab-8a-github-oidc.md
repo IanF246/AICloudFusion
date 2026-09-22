@@ -193,15 +193,7 @@ git branch -M main
 git push -u origin main
 ```
 
-**🔑 The first push will ask you to log in to GitHub. This is where people get stuck — read this carefully:**
-
-- **Most common (Windows and Mac):** a **browser window pops open** asking you to authorize Git to access GitHub. Click **Sign in** / **Authorize**. Once you approve in the browser, the push continues automatically. This is Git Credential Manager doing its job — you only do it once.
-- **If instead the terminal asks for a "Username" and "Password":** type your GitHub username, but **for the password do NOT use your GitHub account password** — GitHub stopped accepting that in 2021. You need a **Personal Access Token (PAT)**:
-  1. Go to [github.com/settings/tokens](https://github.com/settings/tokens) → **Generate new token** → **Generate new token (classic)**
-  2. Give it a name, set an expiration, and check the **`repo`** scope
-  3. Click **Generate token** and **copy it** (you won't see it again)
-  4. Paste that token as the **password** in the terminal
-- **Easiest alternative:** install the **GitHub CLI** ([cli.github.com](https://cli.github.com/)), run `gh auth login`, and choose "Login with a web browser." After that, `git push` just works.
+> **🔑 Authentication:** You ran `gh auth login` in the prerequisites, which sets `gh` up as your Git credential helper — so this push should authenticate automatically, with no username/password prompt. If you *are* prompted for a password (e.g. `gh` wasn't configured), see the **"`git push` asks for a password"** row in the Troubleshooting table below for the Personal Access Token fix.
 
 **✅ You should see** your files uploading, ending with a line like `branch 'main' set up to track 'origin/main'`.
 
@@ -250,12 +242,28 @@ aws iam create-open-id-connect-provider --url https://token.actions.githubuserco
 
 GitHub's OIDC tokens include a `sub` (subject) claim that identifies which repo the workflow is running in. Some GitHub accounts include numeric IDs (like `repo:username@12345/repo-name@67890`), while others use a simpler format (`repo:userName/repo-name`). **You must use the exact format your account uses**, or AWS will silently reject the token.
 
-**Step 5a: Get your subject prefix.** 📋 
+**Step 5a: Get your subject prefix.**
 
 Go to your GitHub repo in the browser, select the workshop repo, and click on Settings tab. From here expand the Actions option in the left hand menu, and select OIDC. You should then see your default subject claim prefix:
 
 **✅ You should see** one of these formats printed:
 - With IDs: `repo:userName@12345678/workshop-iac@87654321`
+- Without IDs: `repo:userName/workshop-iac`
+
+> **💡 Which format will you have?** GitHub repositories **created after July 15, 2026** use the with-IDs format by default (GitHub calls these "immutable subject claims"), so a brand-new `workshop-iac` repo will almost certainly be the `@`-with-IDs version. Older repos use the simpler format. Use exactly what you see.
+
+**Step 5b (reliable backup): derive the prefix with `gh`.** If the Settings page doesn't clearly show your prefix, build it directly — you already installed `gh` in the prerequisites. 📋 Copy and paste, **replacing `<YOUR_GITHUB_USERNAME>`** in both commands:
+
+```
+gh api users/<YOUR_GITHUB_USERNAME> --jq .id
+gh api repos/<YOUR_GITHUB_USERNAME>/workshop-iac --jq .id
+```
+
+The first number is your **owner ID**, the second is your **repo ID**. Assemble your prefix as:
+
+`repo:<YOUR_GITHUB_USERNAME>@<OWNER_ID>/workshop-iac@<REPO_ID>`
+
+For example, owner ID `12345678` and repo ID `87654321` give `repo:janedoe@12345678/workshop-iac@87654321`. (If Step 5a showed the no-IDs format instead, your prefix is simply `repo:<YOUR_GITHUB_USERNAME>/workshop-iac` — ignore the IDs.)
 
 > **📝 Copy the output exactly** — you will paste it into the trust policy in the next step.
 
@@ -314,7 +322,7 @@ Save the file.
 aws iam create-role --role-name github-actions-infra --assume-role-policy-document file://pipeline-trust.json
 ```
 
-**✅ You should see** JSON output with the role's ARN. **📝 Write down the role ARN** (`arn:aws:iam::<ACCOUNT_ID>:role/github-actions-infra`) — you'll need it in Lab 8B.
+**✅ You should see** JSON output with the role's ARN. **📝 Write down the role ARN** (`arn:aws:iam::<YOUR_ACCOUNT_ID>:role/github-actions-infra`) — you'll need it in Lab 8B.
 
 ---
 
@@ -322,7 +330,7 @@ aws iam create-role --role-name github-actions-infra --assume-role-policy-docume
 
 The pipeline role needs to do exactly two things: **assume your deploy role** (the same one you used locally in Session 7) and **read/write the state backend**. It does NOT need direct permissions on Lambda, S3 apps, etc. — because the actual resource work happens through the deploy role it assumes. This keeps the pipeline role minimal.
 
-**Step 8a:** In VS Code, right-click the `workshop-iac` folder → **New File** → `pipeline-permissions.json`. 📋 Paste this, **replacing `ACCOUNT_ID_HERE` in 3 places**, then save:
+**Step 8a:** In VS Code, right-click the `workshop-iac` folder → **New File** → `pipeline-permissions.json`. 📋 Paste this, **replacing `<YOUR_ACCOUNT_ID>` (2 places) and `<INITIALS>` (2 places)**, then save:
 
 ```json
 {
@@ -420,7 +428,7 @@ The SAA (and Security Specialty) exams test:
 
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
-| `git push` asks for a password and then fails | GitHub no longer accepts account passwords over HTTPS | Use a Personal Access Token as the password, or install GitHub CLI and run `gh auth login` — see the detailed authentication guidance in Step 3b |
+| `git push` asks for a password and then fails | GitHub no longer accepts account passwords over HTTPS | Easiest: run `gh auth login` (as in the prerequisites), then push again. Or use a **Personal Access Token**: [github.com/settings/tokens](https://github.com/settings/tokens) → **Generate new token (classic)** → check the **`repo`** scope → **Generate** and copy it → paste it as the **password** at the prompt (not your account password) |
 | Browser opened but push still hangs | Authorization wasn't completed | Complete the sign-in/authorize in the browser window; if it closed, re-run `git push -u origin main` |
 | Push says "updates were rejected" | The GitHub repo isn't empty (you added a README) | Recreate the repo without a README/gitignore, or run `git pull --rebase origin main` then push |
 | `EntityAlreadyExists` on the OIDC provider | A GitHub OIDC provider already exists in your account | That's fine — reuse it. Skip to Step 5. |
