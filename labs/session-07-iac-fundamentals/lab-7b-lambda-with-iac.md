@@ -41,7 +41,7 @@ By the end of this lab, you will have:
 | Service | What It Is | Cost |
 |---------|-----------|------|
 | AWS Lambda | Serverless compute | Always Free: 1M requests + 400,000 GB-seconds/month |
-| Amazon CloudWatch Logs | Function logs | 	~$0.00 ($0.50 per GB — this lab generates kilobytes) |
+| Amazon CloudWatch Logs | Function logs | ~$0.00 ($0.50 per GB ingested — this lab generates kilobytes) |
 | AWS IAM | Lambda execution role | Always Free |
 
 **Estimated cost for this lab: $0.00**
