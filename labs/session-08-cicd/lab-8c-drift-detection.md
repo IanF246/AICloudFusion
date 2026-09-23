@@ -311,6 +311,8 @@ You added automated drift detection and proved it works:
 - **Exit codes are how pipelines make decisions.** `-detailed-exitcode` returning 2 is a feature, not an error.
 - **Tooling details matter.** A wrapper swallowing an exit code can make a "working" pipeline that actually does nothing — always verify the failure path, not just the success path.
 
+> **🔗 Well-Architected callback:** detecting drift and correcting it is the **Operational Excellence pillar** (Session 6) — you *observe* your system for divergence and *respond*, instead of finding out by accident months later. This closes the arc: **Session 6 defined good, Session 7 codified it, Session 8 keeps it honest — automatically.**
+
 > **💡 Session 8 complete.** You've built keyless OIDC auth (8A), a plan/apply GitOps pipeline (8B), and automated drift detection (8C) — a professional CI/CD setup for infrastructure.
 
 ---
