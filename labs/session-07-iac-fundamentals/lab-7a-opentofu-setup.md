@@ -23,6 +23,8 @@ In this lab, you will set up a **complete Infrastructure as Code (IaC) environme
 
 **Why this matters:** In previous labs, you created resources with individual CLI commands (`aws s3 mb`, `aws lambda create-function`). That works for learning, but in real jobs, infrastructure is defined in **code files** that are version-controlled, reviewed, and deployed consistently. IaC means your entire infrastructure can be recreated from a Git repository — no manual clicking, no forgotten steps, no "works on my machine."
 
+> **🗺️ Arc check (2 of 3): codify.** In Session 6 you learned what a well-architected system *looks like* and built it with one-off CLI commands. This session makes it **reproducible** — the same Lambda + IAM role + log group you assembled by hand in Lab 6B, you'll now declare in code so it deploys identically every time. (Session 8 then automates it.)
+
 ---
 
 ## Prerequisites
@@ -259,6 +261,8 @@ code .
 ## PART 1 — Bootstrap the State Backend
 
 Before OpenTofu can manage infrastructure, it needs a place to store its state file. This is a chicken-and-egg problem: you cannot use OpenTofu to create the bucket that stores its own state. So you bootstrap these two resources manually (once), then everything else is managed by OpenTofu.
+
+> **🔗 Well-Architected callback:** this backend *is* the **Reliability pillar** (Session 6) applied to your tooling — the state bucket is **versioned** (recover a lost or corrupted state, like the S3 versioning in Lab 6A), and the DynamoDB **lock** stops two runs from corrupting state at once. You're protecting against failure and human error before deploying a single resource.
 
 ### Step 4: Create the State Bucket
 
