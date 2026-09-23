@@ -415,15 +415,31 @@ jobs:
 > | `Verify confirmation` step | Runs first (after checkout) and **aborts** unless the word is exactly `destroy` — before touching AWS |
 > | `env: CONFIRM:` instead of inline `${{ }}` in the script | Passes the typed value in as an environment variable rather than pasting it straight into the shell command. Dropping untrusted input directly into a `run:` script is a known injection risk; routing it through `env:` is the safe pattern for *any* user- or event-supplied value |
 
-**Step 7b:** Commit and push. 📋 Copy and paste (from the project root):
+**Step 7b: Ship it via a Pull Request.**
+
+A new workflow file is a change to `main`, so branch it and merge through a PR — the same flow you used for the versioning change earlier in this lab. Don't commit straight to `main`. 📋 Copy and paste (from the project root):
 
 ```
+git checkout -b add-destroy-workflow
 git add .
 git commit -m "Add guarded manual destroy workflow"
-git push
+git push -u origin add-destroy-workflow
 ```
 
-> **💡 This push triggers the apply pipeline too, but there are no infrastructure changes, so it will report "No changes." Wait for it to finish.**
+Then on GitHub:
+
+1. **Compare & pull request** for `add-destroy-workflow` (or **Pull requests** tab → **New pull request**, base `main`, compare `add-destroy-workflow`) → **Create pull request**.
+2. Wait for the **Tofu Plan** check to go green — it reports **No changes**, because a workflow file changes no AWS resources.
+3. **Merge pull request** → **Confirm merge**. The merge triggers **Tofu Apply**, again **No changes** — wait for it to finish.
+
+Sync your local `main`. 📋 Copy and paste:
+
+```
+git checkout main
+git pull origin main
+```
+
+> **💡 The destroy workflow's "Run workflow" button only appears once `destroy.yml` is on `main`** — which it now is, after the merge. That's why you merge before testing it in the next step.
 
 **Step 7c: Test the guard (the abort path).**
 
