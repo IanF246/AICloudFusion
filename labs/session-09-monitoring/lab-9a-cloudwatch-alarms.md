@@ -30,7 +30,9 @@ In this lab you'll set up the monitoring foundation that professional teams rely
 - ✅ An **email address** you can check during the lab (for SNS confirmation)
 - ✅ Completed **Lab 1A** (AWS account + CLI setup)
 
-> **💡 This lab is standalone.** You do NOT need Sessions 7–8 (IaC/CI-CD) to complete it. If you did complete those sessions, great — Session 9B will build on that pipeline.
+> **💡 This lab is standalone.** You do NOT need Sessions 7–8 (IaC/CI-CD) to complete it. If you did complete those sessions, great — Session 9C will build on that pipeline.
+
+> **💡 Why the CLI here (after all that IaC)?** Sessions 7–8 taught you to define infrastructure as *code*, not type it by hand — so deploying this Lambda with `aws lambda create-function` might feel like a step backward. It's deliberate: this lab keeps the focus on *monitoring* concepts, not tooling. In a real IaC project the alarm would be a resource in code — an `aws_cloudwatch_metric_alarm` sitting right next to the `aws_cloudwatch_log_group` you defined in Labs 7B/7C — and later in Session 9 you'll tie monitoring into the pipeline you built in Session 8. **Learn the concept here by hand; codify it there.**
 
 ---
 
@@ -63,15 +65,18 @@ All services used are within the AWS Always Free tier. Complete the Cleanup sect
 
 **Why monitoring matters** — without it, you're flying blind. A function could be failing 100% of requests and you'd only find out when someone manually checks or a customer complains. Alarms give you **proactive visibility**: the system tells *you* there's a problem, instead of you discovering it by accident.
 
+> **🔗 Well-Architected callback:** monitoring and alerting *is* the **Operational Excellence pillar** (Session 6) — "run and monitor systems, and know when something breaks." You got a first taste in Lab 6B (an alarm on Lambda errors); this session goes deeper on the observability toolkit. If you did the WAF session, this is the pillar 6B pointed you toward.
+
 ---
 
 ## ⚠️ Reminder: How to Read Commands
 
-Commands go in your terminal (PowerShell on Windows, Terminal on Mac/Linux). Files are created in a text editor (VS Code recommended — right-click folder → New File).
+Commands go in your terminal (PowerShell on Windows, Terminal on Mac/Linux). Files are created in **VS Code**: right-click the folder in the Explorer panel → **New File** → type the exact name → paste → **Save** (Ctrl+S / Cmd+S).
 
 | Placeholder | What to Replace It With | Example |
 |-------------|------------------------|---------|
 | `<YOUR_PROFILE_NAME>` | Your AWS CLI profile name | `AdministratorAccess-123456789012` |
+| `<YOUR_ACCOUNT_ID>` | Your 12-digit AWS account number | `123456789012` |
 | `<YOUR_EMAIL>` | An email address you can check right now | `jane@example.com` |
 
 ---
@@ -122,15 +127,23 @@ pwd
 
 **✅ You should see** the path to your new folder.
 
+**Open the folder in VS Code.** 📋 Copy and paste:
+
+```
+code .
+```
+
+> This opens VS Code with `workshop-lab-9a` as its **file tree**, so every file you create lands in the right place. (If you see `'code' is not recognized`, open VS Code manually → **File → Open Folder** → select `workshop-lab-9a`. Keep both the terminal and VS Code open side by side.)
+
 ---
 
 ### Step 2: Create the Lambda Function Code
 
 You'll deploy a simple API function that returns a JSON response. This represents a real application endpoint — something users hit when they visit your website or app.
 
-**Step 2a:** Open your text editor and create a new file.
+**Step 2a:** In the VS Code file tree, create a **New File** named `handler.py`.
 
-**Step 2b:** 📋 Copy and paste this code:
+**Step 2b:** 📋 Copy and paste this code into it:
 
 ```python
 import json
@@ -169,9 +182,7 @@ def lambda_handler(event, context):
     }
 ```
 
-**Step 2c:** Save the file as `handler.py` in your `workshop-lab-9a` folder.
-
-> ⚠️ **Windows users:** in Notepad, change "Save as type" to "All Files" so it saves as `handler.py` and not `handler.py.txt`.
+**Step 2c:** **Save** the file (**Ctrl+S** / **Cmd+S**). Confirm the tab at the top of VS Code reads `handler.py` (not `handler.py.txt`).
 
 **Step 2d: What does this code do?**
 - It's a Lambda function that acts as an API endpoint
@@ -185,7 +196,7 @@ def lambda_handler(event, context):
 
 Before Lambda can run your code, it needs an **IAM role** — permission to exist and write logs. This role says "Lambda is allowed to run and send its output to CloudWatch Logs."
 
-**Step 3a:** Create the trust policy file. Open your text editor → new file. 📋 Copy and paste:
+**Step 3a:** In the VS Code file tree, create a **New File** named `lambda-trust.json`. 📋 Copy and paste this into it:
 
 ```json
 {
@@ -202,7 +213,7 @@ Before Lambda can run your code, it needs an **IAM role** — permission to exis
 }
 ```
 
-**Step 3b:** Save it as `lambda-trust.json` in your `workshop-lab-9a` folder.
+**Step 3b:** **Save** the file (**Ctrl+S** / **Cmd+S**).
 
 > **What does this do?** It tells AWS "the Lambda service is allowed to assume this role." Without this, Lambda can't use the role.
 
@@ -242,15 +253,15 @@ Compress-Archive -Path handler.py -DestinationPath function.zip -Force
 zip function.zip handler.py
 ```
 
-> **⚠️ Important:** Make sure you're in the `workshop-lab-9a` folder when you run this (run `pwd` to check). The zip must contain `handler.py` at the root level — not inside a subfolder. If you accidentally zip from a parent directory (e.g., `Compress-Archive -Path workshop-lab-9a\handler.py`), the file will be nested and Lambda won't find it, giving you "Unable to import module 'handler'."
+>[!IMPORTANT]
+> **⚠️** Make sure you're in the `workshop-lab-9a` folder when you run this (run `pwd` to check). The zip must contain `handler.py` at the root level — not inside a subfolder. If you accidentally zip from a parent directory (e.g., `Compress-Archive -Path workshop-lab-9a\handler.py`), the file will be nested and Lambda won't find it, giving you "Unable to import module 'handler'."
 
-**Step 4b:** Create the Lambda function. 📋 Copy and paste:
+**Step 4b:** Create the Lambda function. 📋 Copy and paste and replace `<YOUR_ACCOUNT_ID>`** with your 12-digit AWS account ID (the one you saw in Step 1b):
 
 ```
 aws lambda create-function --function-name workshop-api-lab9 --runtime python3.12 --role arn:aws:iam::<YOUR_ACCOUNT_ID>:role/workshop-lab9-lambda-role --handler handler.lambda_handler --zip-file fileb://function.zip --timeout 10 --memory-size 128 --region us-east-1
 ```
 
-> **⚠️ Replace `<YOUR_ACCOUNT_ID>`** with your 12-digit AWS account ID (the one you saw in Step 1b).
 
 **✅ You should see** JSON output showing your function details, including `"State": "Pending"` or `"State": "Active"`.
 
@@ -423,7 +434,7 @@ That's correct — the alarm just started and hasn't evaluated a data point yet.
 
 Now you'll simulate what happens when a bad code change reaches production. You'll deploy a broken version of the function and watch the alarm do its job.
 
-**Step 9a:** Create the broken version. Open your text editor → new file. 📋 Copy and paste:
+**Step 9a:** Create the broken version. In VS Code, open `handler.py` (click it in the file tree), select all (**Ctrl+A** / **Cmd+A**), delete, and 📋 paste this over it:
 
 ```python
 import json
@@ -464,7 +475,7 @@ def lambda_handler(event, context):
     }
 ```
 
-**Step 9b:** Save it as `handler.py` in your `workshop-lab-9a` folder (overwriting the good version).
+**Step 9b:** **Save** the file (**Ctrl+S** / **Cmd+S**) — this overwrites the good version.
 
 > **What's the bug?** Line 21 references a variable called `database_url` that doesn't exist anywhere in the code. This is a realistic mistake — someone refactored, removed the config where `database_url` was defined, but forgot to remove the line that uses it. Python won't catch this until the code actually runs.
 
@@ -634,6 +645,8 @@ aws iam delete-role --role-name workshop-lab9-lambda-role
 ```
 
 **Step 7:** Delete the project folder.
+
+> **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-9a` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
 
 **Windows (PowerShell):**
 ```powershell
