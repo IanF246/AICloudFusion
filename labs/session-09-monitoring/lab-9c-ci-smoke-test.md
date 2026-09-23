@@ -108,6 +108,12 @@ cd ~\Desktop\workshop-iac
 cd ~/Desktop/workshop-iac
 ```
 
+**Open it in VS Code** so you can create files in the right place:
+
+```
+code .
+```
+
 > **💡 If you don't have this folder:** Create a new repo for this lab. Run `mkdir ~/Desktop/workshop-lab-9c && cd ~/Desktop/workshop-lab-9c && git init`. You'll need to create a GitHub repo and push to it manually (see Lab 8A Steps 2–3).
 
 **Step 1c:** Create a folder for the Lambda code within your project:
@@ -266,11 +272,12 @@ jobs:
             --memory-size 128 \
             --region us-east-1
 
-      - name: Wait for function to be active
+      - name: Wait for function to be ready
         run: |
-          echo "Waiting for function to be ready..."
-          sleep 5
-          echo "Function is active."
+          echo "Waiting for the function to finish updating..."
+          aws lambda wait function-active --function-name workshop-api-lab9 --region us-east-1
+          aws lambda wait function-updated --function-name workshop-api-lab9 --region us-east-1
+          echo "Function is ready."
 
       - name: Smoke Test - Invoke and verify response
         run: |
@@ -371,23 +378,38 @@ aws iam put-role-policy --role-name github-actions-infra --policy-name lambda-de
 
 ---
 
-### Step 5: Commit and Push — Watch the Pipeline Pass
+### Step 5: Ship the Pipeline via a Pull Request — Watch It Pass
 
-**Step 5a:** Commit everything and push. 📋 Copy and paste:
+Even the pipeline itself ships through a pull request — the same branch → PR → merge discipline you used in Labs 8B and 8C. Never commit straight to `main`.
+
+**Step 5a:** Create a branch and push it. 📋 Copy and paste (from the project root):
 
 ```
+git checkout -b add-smoke-test-pipeline
 git add .
 git commit -m "Add Lambda deploy pipeline with smoke test"
-git push
+git push -u origin add-smoke-test-pipeline
 ```
 
-**Step 5b:** Watch the pipeline run. 📋 Copy and paste:
+**Step 5b:** Open a pull request. 📋 Copy and paste:
 
 ```
+gh pr create --title "Add deploy + smoke-test pipeline" --body "CI pipeline that deploys the Lambda and smoke-tests it after every change"
+```
+
+> **💡 Heads up — don't expect a check on *this* PR.** A workflow's `pull_request` trigger only runs reliably once the workflow file is on `main`, and this PR is what *adds* it. GitHub may show no smoke-test check here (or run it once, inconsistently) — that's expected for this one bootstrapping PR. It runs for certain when you **merge** (a push to `main`), and every PR after this (like Step 6's) is checked automatically.
+
+**Step 5c:** Merge the PR. On GitHub, open the PR → **Merge pull request** → **Confirm merge** (or run `gh pr merge --merge`). The merge is a push to `main`, which triggers the pipeline for the first time — deploying your function and running the smoke test.
+
+**Step 5d:** Sync your local `main` and watch the run. 📋 Copy and paste:
+
+```
+git checkout main
+git pull origin main
 gh run watch
 ```
 
-This shows the pipeline running in real time. You should see each step complete: checkout → configure AWS → package → deploy → smoke test.
+`gh run watch` shows the pipeline running in real time: checkout → configure AWS → package → deploy → smoke test.
 
 **✅ You should see** the run complete with a green checkmark. The smoke test should show:
 ```
@@ -447,7 +469,7 @@ gh pr create --title "Add database connection" --body "Adding database connectiv
 
 **✅ You should see** a PR URL. The pipeline will automatically run against the PR.
 
-> **⚠️ If the pipeline doesn't trigger:** The workflow file must exist on `main` for PR triggers to work. If you skipped Step 5 or the first push failed, the workflow doesn't exist on main yet and GitHub won't run it on your PR. Go back to Step 5 and ensure the push to main succeeded.
+> **⚠️ If the pipeline doesn't trigger:** The workflow file must exist on `main` for PR triggers to work. If you skipped Step 5 or its merge didn't complete, the workflow isn't on `main` yet and GitHub won't run it on your PR. Go back to Step 5 and confirm the PR was merged to `main`.
 
 **Step 6e:** Watch the pipeline. 📋 Copy and paste:
 
@@ -613,10 +635,12 @@ aws cloudwatch put-dashboard --dashboard-name workshop-lab9-overview --dashboard
 |-------|-------------|-------------------------|
 | **Smoke test in CI** (this lab) | Tests after deploy, blocks bad merges | *Before* users are affected |
 | **CloudWatch Alarm** (Lab 9A) | Alerts when errors occur in production | *Seconds* after problems start |
-| **CloudWatch Logs + Insights** (Lab 9B) | Provides diagnostic detail | *During* investigation |
+| **CloudWatch Logs + Log Analytics** (Lab 9B) | Provides diagnostic detail | *During* investigation |
 | **Dashboard** (this lab) | Ongoing operational visibility | *Always* — shows trends and current state |
 
 No single layer is enough. Together, they give you prevention, detection, diagnosis, and visibility.
+
+> **🔗 Well-Architected callback:** all of this is the **Operational Excellence pillar** (Session 6). Across Session 9 you built the three habits it asks for: **9A detected** problems, **9B responded** to them, and **9C prevents** them (shift-left testing). Prevention + detection + fast diagnosis is what "operate and observe" looks like in a mature team.
 
 ---
 
@@ -640,12 +664,12 @@ The SAA exam tests:
 
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
-| Pipeline fails at "Configure AWS credentials" | OIDC trust policy doesn't match your repo | Check the `sub` claim in your pipeline trust policy (Lab 8A Step 5–6). Run `gh api "repos/<username>/workshop-iac/actions/oidc/customization/sub"` to find the correct prefix |
+| Pipeline fails at "Configure AWS credentials" | OIDC trust policy doesn't match your repo | Check the `sub` claim in your pipeline trust policy (Lab 8A Step 5–6). Run `gh api "repos/<YOUR_GITHUB_USERNAME>/workshop-iac/actions/oidc/customization/sub"` to find the correct prefix |
 | "Not authorized to perform lambda:UpdateFunctionCode" | Pipeline role is missing the Lambda permissions | Re-run Step 4b to attach the `lambda-deploy-permissions` policy |
 | "is not authorized to perform: iam:PassRole" | Pipeline role can't pass the Lambda execution role | Ensure `lambda-pipeline-permissions.json` includes the `PassRoleToLambda` statement and the ARN is correct |
 | "No such file or directory: function.zip" | The `cd app` or zip step failed | Check that `app/handler.py` exists and is committed (not just saved locally — you need `git add` + `git commit` + `git push`) |
 | "Function not found" on create-function | The `workshop-lab9-lambda-role` doesn't exist | You cleaned up from Lab 9A. Follow Step 1d to recreate the Lambda execution role |
-| Smoke test passes even with broken code | The function wasn't updated (cached version) | The wait step should handle this; if not, increase the sleep duration in the workflow |
+| Smoke test passes even with broken code | The function wasn't updated (cached version) | The `aws lambda wait function-updated` step should ensure the new code is live before the smoke test runs; confirm that step succeeded in the workflow logs |
 | `gh pr create` fails | Not on a branch, or repo not connected | Ensure you're on the `bad-deploy` branch and pushed it (`git push -u origin bad-deploy`) |
 | Pipeline doesn't trigger on PR | Workflow file not on `main` yet | The workflow file must exist on `main` for PR triggers to work. Push the workflow to main first (Step 5), then create the PR |
 | Dashboard shows "No data available" | Function hasn't been invoked recently | Invoke the function a few times to generate fresh data points |
@@ -654,45 +678,62 @@ The SAA exam tests:
 
 ## Cleanup
 
-**Step 1:** Delete the CloudWatch Dashboard:
+Pick **one** of the two paths below.
+
+> **⚠️ The one rule: keep both, or remove both.** Keep the repo *and* its AWS resources, or remove them together. Do **not** delete the AWS resources while leaving `deploy-and-test.yml` on `main` — the next time you push, the pipeline would try to deploy to a function that no longer exists (with permissions you've revoked) and fail. Match the two sides.
+
+### Path A — Keep it running (recommended: it's a portfolio piece, and $0)
+
+Everything this lab uses is within the AWS **Always Free** tier — Lambda (1M requests/month), the IAM roles, the CloudWatch dashboard (3 free) and alarm (10 free), and SNS (1,000 emails/month) — so leaving it all deployed costs nothing. And `deploy-and-test.yml` runs **only when you push or open a PR** — it won't fire on its own. So you can leave the whole working CI/CD + smoke-test pipeline in place to demo.
+
+There's nothing to tear down — just delete the leftover branch from Step 5. 📋 Copy and paste (from the project root):
+
+```
+git checkout main
+git pull origin main
+git push origin --delete add-smoke-test-pipeline
+git branch -D add-smoke-test-pipeline
+```
+
+> **💡 If a branch is already gone** (GitHub may auto-delete merged branches), the command just reports it doesn't exist — safe to ignore. The `bad-deploy` branch was already removed in Step 7.
+
+That's it. Your repo stays a working portfolio piece, and your AWS bill stays $0.
+
+### Path B — Tear it all down (return to your Session 8 state)
+
+Do this only if you're finished and want a clean account and repo. Remove the AWS resources **and** the repo changes together.
+
+**B1 — Delete the AWS resources.** 📋 Copy and paste:
+
 ```
 aws cloudwatch delete-dashboards --dashboard-names workshop-lab9-overview --region us-east-1
-```
-
-**Step 2:** Remove the Lambda deploy permissions from the pipeline role:
-```
-aws iam delete-role-policy --role-name github-actions-infra --policy-name lambda-deploy-permissions
-```
-
-**Step 3:** Delete the Lambda function:
-```
 aws lambda delete-function --function-name workshop-api-lab9 --region us-east-1
-```
-
-**Step 4:** Delete the CloudWatch Log Group:
-```
 aws logs delete-log-group --log-group-name /aws/lambda/workshop-api-lab9 --region us-east-1
-```
-
-**Step 5:** Delete the Lambda execution role:
-```
+aws iam delete-role-policy --role-name github-actions-infra --policy-name lambda-deploy-permissions
 aws iam detach-role-policy --role-name workshop-lab9-lambda-role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 aws iam delete-role --role-name workshop-lab9-lambda-role
 ```
 
-**Step 6:** Delete the alarm and SNS topic (if created in Lab 9A):
+**B2 — Delete the alarm and SNS topic** (if you created them in Lab 9A), **replacing `<YOUR_ACCOUNT_ID>`**:
+
 ```
 aws cloudwatch delete-alarms --alarm-names workshop-lab9-errors --region us-east-1
 aws sns delete-topic --topic-arn arn:aws:sns:us-east-1:<YOUR_ACCOUNT_ID>:workshop-lab9-alerts --region us-east-1
 ```
 
-**Step 7:** Remove the local files added to your repo:
+**B3 — Revert the repo to its Session 8 state.** Remove the files this lab added to `main` and delete the leftover branch. 📋 Copy and paste (from the project root):
+
 ```
 git checkout main
-git branch -D bad-deploy
+git pull origin main
+git rm -r app .github/workflows/deploy-and-test.yml lambda-pipeline-permissions.json
+git commit -m "Remove Lab 9C pipeline and smoke test"
+git push
+git push origin --delete add-smoke-test-pipeline
+git branch -D add-smoke-test-pipeline
 ```
 
-> **💡 Keep the workflow file** if you want to continue using the pipeline for other work. It's a portfolio piece — a working CI/CD pipeline with deployment and automated testing.
+> **💡 Why remove the workflow in the same commit:** because you've just deleted the AWS resources, you must not leave `deploy-and-test.yml` on `main`. This commit deletes it, so the push that lands the change does **not** trigger the (now broken) pipeline. `dashboard.json` was never committed (it's a local-only file) — delete it locally if you like.
 
 ---
 
