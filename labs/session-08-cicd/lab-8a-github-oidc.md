@@ -23,6 +23,8 @@ By the end of this lab, you will have:
 
 **The feedback loop for this lab:** You'll see the problem (storing AWS keys in GitHub is a breach waiting to happen), apply the fix (OIDC trust — no keys), and in Lab 8B verify a pipeline authenticating to AWS with zero stored secrets.
 
+> **🗺️ Arc check (3 of 3): automate.** Session 6 defined *good*; Session 7 made it *reproducible code*. This session makes it **automatic** — a pipeline deploys and guards that code with no one running `tofu` by hand. It builds directly on your Session 7 `workshop-iac` repo, state backend, and deploy role.
+
 ---
 
 ## Prerequisites
@@ -404,6 +406,8 @@ You set up secure, keyless authentication between GitHub and AWS:
 - **Never store long-lived AWS keys in a pipeline.** OIDC gives short-lived, per-run credentials with nothing to leak.
 - **Trust is scoped to one repo** via the `sub` condition — the single most important line in the trust policy.
 - **The pipeline reuses your deploy role**, so the same code and permissions work whether you run locally or in CI.
+
+> **🔗 Well-Architected callback:** short-lived, repo-scoped credentials with no stored keys is the **Security pillar** (Session 6) applied to your pipeline — least privilege and nothing long-lived to leak, now at the CI/CD layer.
 
 > **💡 What persists:** Your GitHub repo, the OIDC provider, and both roles all stay — Lab 8B uses them to run an actual pipeline. Do not delete them.
 
