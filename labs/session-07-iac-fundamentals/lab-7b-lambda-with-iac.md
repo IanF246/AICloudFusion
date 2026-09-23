@@ -546,6 +546,8 @@ cat response.json
 
 > **🎉 You deployed a complete Lambda stack — function, role, and logging — from code, with one command.** Compare this to Lab 6B where you ran six separate CLI commands and had to wait between them.
 
+> **🔗 Well-Architected callback:** replacing those six manual steps with one repeatable command is the **Operational Excellence pillar** (Session 6) in practice — consistent, automatable operations instead of error-prone hand-work.
+
 ---
 
 ## PART 4 — Change Infrastructure by Changing Code
