@@ -1,4 +1,4 @@
-# Lab 9B: Diagnose the Problem — CloudWatch Logs & Log Insights
+# Lab 9B: Diagnose the Problem — CloudWatch Logs & Log Analytics
 
 **Session:** 9 — Monitoring & Observability  
 **Track:** Solutions Architecture  
@@ -17,7 +17,7 @@ This lab teaches the diagnostic workflow that engineers use every day:
 1. **Start from the alarm** — something broke, but what?
 2. **Check the metrics** — see *when* the errors started (correlate with a deploy)
 3. **Dive into CloudWatch Logs** — find the actual error messages and stack traces
-4. **Use Log Insights** to query across thousands of log entries and surface the smoking gun
+4. **Use Log Analytics** to query across thousands of log entries and surface the smoking gun
 5. **Fix the code and verify** the metrics return to healthy
 
 **The scenario:** You're an engineer who just got paged. The alarm fired. Your job is to figure out what went wrong, how to fix it, and prove it's fixed. You'll do this by reading the evidence in the logs.
@@ -39,7 +39,7 @@ This lab teaches the diagnostic workflow that engineers use every day:
 |---------|-----------|------|
 | AWS Lambda | Serverless function execution | Always Free (1M requests/month) |
 | Amazon CloudWatch Logs | Stores function output and errors | Always Free (5GB ingestion, 5GB storage/month) |
-| CloudWatch Logs Insights | Query engine for searching logs | Always Free (5GB scanned/month) |
+| CloudWatch Log Analytics | Query engine for searching logs | Always Free (5GB scanned/month) |
 
 **Estimated cost for this lab: $0.00**
 
@@ -53,11 +53,13 @@ This lab teaches the diagnostic workflow that engineers use every day:
 
 **Structured Logging** — writing logs as JSON (`{"level": "ERROR", "message": "..."}`) instead of plain text. This makes them machine-searchable. You can query by field (find all ERROR-level logs, or all logs from a specific request ID).
 
-**CloudWatch Logs Insights** — a query language for searching logs at scale. Instead of scrolling through thousands of lines, you write a query like `filter @message like /ERROR/` and it returns exactly the entries you need, sorted by time. This is how engineers find needles in haystacks.
+**CloudWatch Log Analytics** — a query language for searching logs at scale. Instead of scrolling through thousands of lines, you write a query like `filter @message like /ERROR/` and it returns exactly the entries you need, sorted by time. This is how engineers find needles in haystacks.
 
 **Mean Time to Detect (MTTD)** — how long between "something broke" and "we know it broke." Alarms reduce this to seconds.
 
 **Mean Time to Resolve (MTTR)** — how long between "we know it's broken" and "it's fixed." Good logs and queries reduce *this* — because you find the root cause faster.
+
+> **🔗 Well-Architected callback:** this diagnose-and-recover workflow is the **Operational Excellence pillar** (Session 6), specifically its "respond to events" practice. Lab 9A *detected* the problem; here you *investigate and resolve* it — and MTTD/MTTR are exactly the metrics teams use to measure how well they operate.
 
 ---
 
@@ -152,6 +154,8 @@ aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Erro
 - Later timestamps: `"Sum": 1.0` or higher — errors spiking
 
 > **📝 Note the timestamp** where errors first appeared. This is your first clue: "the problem started at [this time]."
+
+> **🔗 Correlate with a deploy:** in a real incident, the first thing you do with this timestamp is line it up against your deployment history — errors that begin *exactly* at a deploy almost always mean that deploy caused them. Here, that error-onset time is when you pushed the broken code back in **Lab 9A (Step 9)**. So you already know *when* it started and *that a deploy did it* — but not yet *what* in the code broke. That's what the logs are for (Step 5).
 
 **Step 3b:** Compare with invocation counts for the same period:
 
@@ -252,9 +256,9 @@ Traceback (most recent call last):
 
 ---
 
-### Step 6: Investigation Step 4 — Use Log Insights to Query at Scale
+### Step 6: Investigation Step 4 — Use Log Analytics to Query at Scale
 
-In a real application, you'd have thousands of log entries. Scrolling through them manually doesn't scale. CloudWatch Logs Insights lets you search across all entries with a query.
+In a real application, you'd have thousands of log entries. Scrolling through them manually doesn't scale. CloudWatch Log Analytics lets you search across all entries with a query.
 
 **Step 6a:** Run a query to find all ERROR-level entries in the last hour. 📋 Copy and paste:
 
@@ -300,7 +304,7 @@ Also note the `"statistics"` section at the bottom:
 - `"recordsMatched"` — how many log entries matched your filter
 - `"recordsScanned"` — how many total entries were searched
 
-> **💡 Why Log Insights matters:** You just searched through ALL your logs and found every error, sorted by time, in under 5 seconds. In a real application with millions of log entries, this is how you find the needle in the haystack. Without it, you'd be scrolling through logs for hours.
+> **💡 Why Log Analytics matters:** You just searched through ALL your logs and found every error, sorted by time, in under 5 seconds. In a real application with millions of log entries, this is how you find the needle in the haystack. Without it, you'd be scrolling through logs for hours.
 
 **Step 6c:** Run a second query — count errors per minute to see the spike pattern:
 
@@ -337,7 +341,7 @@ aws logs get-query-results --query-id "$QUERY_ID2" --region us-east-1
 
 Now that you've identified the root cause, fix it.
 
-**Step 7a:** Open your text editor and create the fixed version. 📋 Copy and paste:
+**Step 7a:** In VS Code, open `handler.py` (reopen the `workshop-lab-9a` folder with `code .` if it isn't already open), select all (**Ctrl+A** / **Cmd+A**), delete, and 📋 paste this fixed version over it:
 
 ```python
 import json
@@ -376,7 +380,7 @@ def lambda_handler(event, context):
     }
 ```
 
-**Step 7b:** Save as `handler.py` (overwriting the broken version).
+**Step 7b:** **Save** the file (**Ctrl+S** / **Cmd+S**) — this overwrites the broken version.
 
 **Step 7c:** Re-deploy the fix.
 
@@ -390,7 +394,7 @@ aws lambda update-function-code --function-name workshop-api-lab9 --zip-file fil
 
 **macOS / Linux:**
 ```bash
-zip -f function.zip handler.py
+zip function.zip handler.py
 aws lambda update-function-code --function-name workshop-api-lab9 --zip-file fileb://function.zip --region us-east-1 --query "LastUpdateStatus" --output text
 ```
 
@@ -466,11 +470,11 @@ aws cloudwatch describe-alarms --alarm-names workshop-lab9-errors --region us-ea
 
 ### Step 9: ✅ Console Checkpoint — See the Full Story Visually
 
-**Step 9a:** Open the CloudWatch console → **Logs** → **Logs Analytics** (left menu):
-1. Select log group for your source: `/aws/lambda/workshop-api-lab9`
+**Step 9a:** Open the CloudWatch console → **Logs** → **Log Analytics** (left menu):
+1. Select the log group for your source: `/aws/lambda/workshop-api-lab9`
 2. In the query box, paste: `filter @message like /ERROR/ | stats count(*) by bin(5m)`
 3. Click **Run query**
-4. Switch the graph a bar chart showing errors concentrated in one time window (the broken period) and zero everywhere else
+4. Switch to the **Visualization** tab — a bar chart shows errors concentrated in one time window (the broken period) and zero everywhere else
 
 **Step 9b:** Go to **Metrics** → **Classic metrics** → **Lambda** → **By Function Name**:
 1. Tick **Errors** for `workshop-api-lab9`
@@ -488,14 +492,14 @@ aws cloudwatch describe-alarms --alarm-names workshop-lab9-errors --region us-ea
 | Checked error metrics | **When** the problem started — correlating timestamp with a deploy |
 | Compared errors to invocations | **Severity** — 100% failure rate (total outage) |
 | Read raw log entries | **What** — the exact error message and stack trace |
-| Used Log Insights query | **At scale** — found the smoking gun in seconds, not hours |
+| Used Log Analytics query | **At scale** — found the smoking gun in seconds, not hours |
 | Queried errors-per-minute | **Pattern** — sudden spike (code change), not gradual (load issue) |
 | Fixed and re-deployed | **Verification** — metrics confirm recovery |
 
 **Key takeaways:**
 - **Metrics tell you *when* and *how bad*.** They're your first stop after an alert.
 - **Logs tell you *what* and *where*.** The stack trace is the smoking gun.
-- **Log Insights lets you query at scale.** Real applications have millions of log entries — you can't scroll through them.
+- **Log Analytics lets you query at scale.** Real applications have millions of log entries — you can't scroll through them.
 - **The diagnostic workflow is always:** alert → metrics (when/severity) → logs (what/where) → fix → verify
 - **The alarm returning to OK proves the fix worked** — you don't just hope, you measure.
 
@@ -507,13 +511,13 @@ aws cloudwatch describe-alarms --alarm-names workshop-lab9-errors --region us-ea
 
 The SAA exam tests:
 - CloudWatch Logs and Log Groups (what they store, how they're organized)
-- Log Insights for querying logs at scale
+- Log Analytics for querying logs at scale
 - Correlating metrics with events (identifying when a change caused a problem)
 - Operational Excellence: monitoring, alerting, and incident response
 - The relationship between Lambda and CloudWatch (automatic log group creation)
 
 **Sample question type:** "An application team notices errors in their Lambda function. How can they quickly identify the root cause across thousands of log entries?"  
-**Answer:** Use CloudWatch Logs Insights to query the function's log group. Filter for ERROR entries, sort by timestamp, and examine the stack traces to identify the failing code and the timestamp when failures began.
+**Answer:** Use CloudWatch Log Analytics to query the function's log group. Filter for ERROR entries, sort by timestamp, and examine the stack traces to identify the failing code and the timestamp when failures began.
 
 ---
 
@@ -522,7 +526,7 @@ The SAA exam tests:
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
 | `ResourceNotFoundException` on log group | The function hasn't been invoked yet (no logs exist) | Invoke the function first — logs are only created on first invocation |
-| Log Insights query returns empty results | Wrong time range or log group not yet populated | Increase the time range (use 3600 seconds = 1 hour); make sure the function has been invoked recently |
+| Log Analytics query returns empty results | Wrong time range or log group not yet populated | Increase the time range (use 3600 seconds = 1 hour); make sure the function has been invoked recently |
 | `$stream` variable is empty (Windows) | The describe-log-streams command failed | Verify the log group exists with `aws logs describe-log-groups`; confirm you're in the right region |
 | `get-log-events` says stream not found (Windows) | The stream name contains `$LATEST` which PowerShell interprets as a variable | Make sure you stored the stream name in `$stream` using the command in Step 5a (don't type the stream name manually); use `"$stream"` in double quotes |
 | `MalformedQueryException` on `start-query` | The start/end time is outside the log group's existence | Make sure `$startTime` and `$endTime` are reasonable Unix timestamps (10-digit numbers). Try using `3600` (1 hour) instead of a larger range |
