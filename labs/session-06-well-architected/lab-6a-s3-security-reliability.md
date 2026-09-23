@@ -19,6 +19,13 @@ The key idea of this lab is the **feedback loop**: for each problem, you will fi
 
 **The scenario:** Your company stores confidential salary data in an S3 bucket. Two teams use Lambda functions to access company data: the **HR team** (who should see salary data) and the **Analytics team** (who should NOT). Right now, both teams can read the file. Your job: restrict access so only authorized roles can read the confidential data, and protect against accidental deletion.
 
+> **🗺️ Where this sits — the 3-session arc (6 → 7 → 8).** Sessions 6, 7, and 8 are one journey:
+> - **Session 6 (now): know what "good" looks like** — the Well-Architected Framework's six pillars.
+> - **Session 7: make it reproducible** — rebuild infrastructure as *code* (OpenTofu) so it deploys identically every time.
+> - **Session 8: make it automatic** — a CI/CD pipeline deploys and guards that code with no one running commands by hand.
+>
+> Principles → codify → automate. Each session builds directly on the last.
+
 ---
 
 ## Prerequisites
