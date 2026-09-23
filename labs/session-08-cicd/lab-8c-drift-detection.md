@@ -38,8 +38,8 @@ By the end you will:
 
 | Service | What It Is | Cost |
 |---------|-----------|------|
-| GitHub Actions | Scheduled workflow runner | Free minutes |
-| AWS (S3 demo bucket) | The resource being checked | Within free tier |
+| GitHub Actions | Scheduled workflow runner | Free — 2,000 minutes/month for private repos on GitHub's Free plan |
+| Amazon S3 | The demo bucket being checked | $0.023 per GB/month — essentially empty, so effectively $0 |
 
 **Estimated cost for this lab: $0.00**
 
@@ -159,19 +159,47 @@ jobs:
 
 ---
 
-### Step 3: Push the Drift Workflow
+### Step 3: Ship the Drift Workflow via a Pull Request
 
-📋 Copy and paste (from the project root):
+Adding a workflow file is a change to `main` — so ship it the same way you shipped the versioning change in Lab 8B: on a branch, through a pull request. Never commit straight to `main`, even for pipeline config.
+
+**Step 3a: Create a branch for this change.** 📋 Copy and paste (from the project root):
+
+```
+git checkout -b add-drift-detection
+```
+
+> **💡 Why a new branch (not the old `add-versioning` one)?** That branch was already merged in Lab 8B — a merged branch is "done." Each new change gets its own fresh branch off `main`. You created `drift.yml` while on `main`, but it isn't committed yet, so this carries your uncommitted work onto the new branch.
+
+**Step 3b: Commit and push the branch.** 📋 Copy and paste:
 
 ```
 git add .
 git commit -m "Add scheduled drift detection workflow"
-git push
+git push -u origin add-drift-detection
 ```
 
-> **💡 Heads up:** because your `infra.yml` pipeline also triggers on push to `main`, pushing this will run an **apply** too. That's harmless — there are no infrastructure changes in this commit, so the apply will say "no changes." Wait for both workflows to finish (Actions tab) before continuing.
+**Step 3c: Open a Pull Request.**
 
-**✅ Checkpoint:** Go to the **Actions** tab. You should now see **Drift Detection** listed as a workflow (in the left sidebar of the Actions page).
+1. On GitHub, click **Compare & pull request** for `add-drift-detection` (or **Pull requests** tab → **New pull request** → base `main`, compare `add-drift-detection`).
+2. Click **Create pull request**.
+
+**Step 3d: Watch the plan check pass.**
+
+On the PR, your `infra.yml` pipeline runs **Tofu Plan**. A workflow YAML file doesn't change any AWS resources, so the plan reports **No changes** — adding automation is not the same as changing infrastructure. Wait for the check to go green.
+
+**Step 3e: Merge the PR.**
+
+Click **Merge pull request** → **Confirm merge**. The merge is a push to `main`, so `infra.yml` runs **Tofu Apply** — again **No changes**. Wait for it to finish.
+
+**Step 3f: Sync your local `main`.** 📋 Copy and paste:
+
+```
+git checkout main
+git pull origin main
+```
+
+**✅ Checkpoint:** Go to the **Actions** tab. You should now see **Drift Detection** listed as a workflow (left sidebar). It only becomes available to run once it's on `main` — which is why it appears now, after the merge.
 
 ---
 
@@ -334,7 +362,7 @@ aws iam delete-role --role-name github-actions-infra
 
 **Step 4 — Delete the GitHub repo** from its **Settings → Delete this repository**, and remove the local `workshop-iac` folder if you wish.
 
-> **💡 Want to keep your work as a portfolio piece?** Leave the GitHub repo in place (just run `tofu destroy` to stop any AWS charges). A working IaC + CI/CD repo is excellent to show in interviews.
+> **💡 Want to keep your work as a portfolio piece?** Leave the GitHub repo in place (just run `tofu destroy` to stop any AWS charges) — and **delete (or disable) `drift.yml`** so the weekly drift check doesn't fail every Monday against the now-destroyed resources. A working IaC + CI/CD repo is excellent to show in interviews.
 
 ---
 
