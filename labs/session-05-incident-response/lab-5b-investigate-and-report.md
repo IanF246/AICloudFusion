@@ -14,11 +14,11 @@ In this lab, you will:
 
 1. **Configure a CloudTrail trail with data event logging and CloudWatch Logs** — so every action in your account, including file downloads, is recorded and queryable
 2. **Simulate a security incident** — create evidence of unauthorized access to an S3 bucket
-3. **Investigate with CloudWatch Logs Insights** — query the full attacker timeline, including data exfiltration events, using the compromised account's identity
+3. **Investigate with CloudWatch Log Analytics** — query the full attacker timeline, including data exfiltration events, using the compromised account's identity
 4. **Contain and eradicate** — revoke the attacker's credentials and remove the user
 5. **Write an incident report** — document the incident using a professional template
 
-By the end of this lab, you will understand how to configure CloudTrail to stream events into CloudWatch Logs, how to write Logs Insights queries to reconstruct a forensic timeline, and how to produce incident documentation that meets industry standards.
+By the end of this lab, you will understand how to configure CloudTrail to stream events into CloudWatch Logs, how to write Log Analytics queries to reconstruct a forensic timeline, and how to produce incident documentation that meets industry standards.
 
 ---
 
@@ -39,7 +39,7 @@ By the end of this lab, you will understand how to configure CloudTrail to strea
 | CloudTrail | First trail — management events | Always Free |
 | CloudTrail | S3 data events via trail | ~$0.00 ($0.10 per 100,000 events — this lab generates fewer than 20) |
 | CloudWatch Logs | Log ingestion from CloudTrail trail | ~$0.00 ($0.50 per GB — this lab generates kilobytes) |
-| CloudWatch Logs Insights | Queries | ~$0.00 ($0.005 per GB scanned — kilobytes of data) |
+| CloudWatch Log Analytics | Queries | ~$0.00 ($0.005 per GB scanned — kilobytes of data) |
 
 **Estimated cost for this lab: $0.00**
 
@@ -53,11 +53,11 @@ By the end of this lab, you will understand how to configure CloudTrail to strea
 
 **The solution this lab uses:** A CloudTrail trail configured to:
 1. Capture S3 data events on the evidence bucket (so `GetObject` is recorded)
-2. Stream all events to CloudWatch Logs (so you can query everything using Logs Insights)
+2. Stream all events to CloudWatch Logs (so you can query everything using Log Analytics)
 
 This combination gives you a complete, queryable forensic record — including the file download — that you can filter by the compromised account's identity.
 
-> **This is what a mature AWS security program looks like.** GuardDuty detects the threat. CloudTrail + CloudWatch Logs provides the evidence. Logs Insights is the investigation tool.
+> **This is what a mature AWS security program looks like.** GuardDuty detects the threat. CloudTrail + CloudWatch Logs provides the evidence. Log Analytics is the investigation tool.
 
 ---
 
@@ -79,9 +79,9 @@ This combination gives you a complete, queryable forensic record — including t
 
 **CloudWatch Logs** is AWS's log aggregation service. When CloudTrail streams events into it, every API call in your account becomes a queryable log entry in near-real time.
 
-**CloudWatch Logs Insights** is a query engine built into CloudWatch. It lets you write SQL-like queries against your log groups to filter, sort, and aggregate events. In incident response, you use it to filter all events by the compromised account's username or access key ID.
+**CloudWatch Log Analytics** is a query engine built into CloudWatch. It lets you write SQL-like queries against your log groups to filter, sort, and aggregate events. In incident response, you use it to filter all events by the compromised account's username or access key ID.
 
-**Forensic Timeline** is a chronological reconstruction of events during an incident — what happened, when, in what order, and who did it. CloudWatch Logs Insights is the tool that builds it.
+**Forensic Timeline** is a chronological reconstruction of events during an incident — what happened, when, in what order, and who did it. CloudWatch Log Analytics is the tool that builds it.
 
 **Incident Report** is a formal document recording what happened, how it was detected, what actions were taken, and what should improve. It is a legal record, a learning tool, and evidence for compliance audits.
 
@@ -96,7 +96,7 @@ Commands are inside gray code boxes. **📋 Copy and paste** them into your term
 | Placeholder | What to Replace It With | Example |
 |-------------|------------------------|---------|
 | `<YOUR_PROFILE_NAME>` | Your AWS CLI profile name from Lab 1A | `AdministratorAccess-123456789012` |
-| `<TRAIL_BUCKET_NAME>` | A globally unique S3 bucket name for CloudTrail logs | `jdoe-lab5b-trail-logs` |
+| `<TRAIL_BUCKET_NAME>` | Your Lab 3C CloudTrail log bucket (or a new one if you skipped 3C) | `jdoe-security-trail-logs` |
 | `<EVIDENCE_BUCKET_NAME>` | A globally unique S3 bucket name for the "evidence" data | `jdoe-lab5b-evidence` |
 | `<ACCOUNT_ID>` | Your 12-digit AWS account ID (Step 3a) | `123456789012` |
 | `<KEY_ID>` | The attacker's Access Key ID (Step 5d) | `AKIAIOSFODNN7EXAMPLE` |
@@ -168,9 +168,11 @@ code .
 
 ---
 
-### Step 3: Set Up the CloudTrail Trail with CloudWatch Logs
+### Step 3: Prepare the Trail for Data-Event Forensics
 
-This entire step is the **Preparation** phase of the NIST IR Lifecycle. The trail must exist before the attack occurs — if you configure logging after the fact, the evidence is already gone.
+This entire step is the **Preparation** phase of the NIST IR Lifecycle — logging must be in place *before* the attack, or the evidence is already gone.
+
+You'll build on the security-track CloudTrail trail (`workshop-security-trail`) you created in **Lab 3C** and **upgrade** it to capture the one thing management events can't show you: the actual file download (an S3 **data event**). You'll add CloudWatch Logs streaming (for Log Analytics queries) and a data-event selector on the evidence bucket.
 
 **Step 3a: Get your AWS Account ID**
 
@@ -198,71 +200,34 @@ aws s3 mb s3://<EVIDENCE_BUCKET_NAME> --region us-east-1
 
 **✅ You should see:** `make_bucket: <EVIDENCE_BUCKET_NAME>`
 
-**Step 3c: Create a dedicated bucket for CloudTrail logs**
-
-CloudTrail needs its own separate bucket to write log files to.
-
-📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
-
-```
-aws s3 mb s3://<TRAIL_BUCKET_NAME> --region us-east-1
-```
-
-**✅ You should see:** `make_bucket: <TRAIL_BUCKET_NAME>`
-
-**Step 3d: Apply a bucket policy so CloudTrail can write to the logging bucket**
-
-In the VS Code file tree, create a **New File** named `trail-policy.json`. 📋 Copy and paste this entire block into it, **replacing `<TRAIL_BUCKET_NAME>` and `<ACCOUNT_ID>`**:
-
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "AWSCloudTrailAclCheck",
-            "Effect": "Allow",
-            "Principal": {
-                "Service": "cloudtrail.amazonaws.com"
-            },
-            "Action": "s3:GetBucketAcl",
-            "Resource": "arn:aws:s3:::<TRAIL_BUCKET_NAME>"
-        },
-        {
-            "Sid": "AWSCloudTrailWrite",
-            "Effect": "Allow",
-            "Principal": {
-                "Service": "cloudtrail.amazonaws.com"
-            },
-            "Action": "s3:PutObject",
-            "Resource": "arn:aws:s3:::<TRAIL_BUCKET_NAME>/AWSLogs/<ACCOUNT_ID>/*",
-            "Condition": {
-                "StringEquals": {
-                    "s3:x-amz-acl": "bucket-owner-full-control"
-                }
-            }
-        }
-    ]
-}
-```
-
-**Save** the file (**Ctrl+S** / **Cmd+S**), then apply it:
-
-📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
-
-```
-aws s3api put-bucket-policy --bucket <TRAIL_BUCKET_NAME> --policy file://trail-policy.json
-```
-
-**✅ No output means success.**
-
-**Step 3e: Create a CloudWatch Log Group for the trail**
-
-This is where CloudTrail will stream every event so you can query them with Logs Insights.
+**Step 3c: Verify your security-track trail is running**
 
 📋 Copy and paste:
 
 ```
-aws logs create-log-group --log-group-name lab5b-cloudtrail-logs --region us-east-1
+aws cloudtrail get-trail-status --name workshop-security-trail --query "IsLogging"
+```
+
+**✅ You should see** `true` — the trail you created in Lab 3C is active. Continue to Step 3d to upgrade it.
+
+> **🔗 Don't have the trail?** (You skipped Lab 3C, or already tore it down.) Expand and run this one-time basic setup, then continue:
+> 1. Create the log bucket — **replace `<TRAIL_BUCKET_NAME>`**:
+>    `aws s3 mb s3://<TRAIL_BUCKET_NAME> --region us-east-1`
+> 2. In VS Code, create `trail-policy.json` using the same two-statement CloudTrail bucket policy from **Lab 3C, Step 4** — set the `Resource` ARNs to your `<TRAIL_BUCKET_NAME>` and your 12-digit account ID. Then apply it:
+>    `aws s3api put-bucket-policy --bucket <TRAIL_BUCKET_NAME> --policy file://trail-policy.json`
+> 3. Create the trail:
+>    `aws cloudtrail create-trail --name workshop-security-trail --s3-bucket-name <TRAIL_BUCKET_NAME> --is-multi-region-trail`
+> 4. Start it:
+>    `aws cloudtrail start-logging --name workshop-security-trail`
+
+**Step 3d: Create a CloudWatch Log Group for the trail**
+
+This is where CloudTrail will stream every event so you can query them with Log Analytics.
+
+📋 Copy and paste:
+
+```
+aws logs create-log-group --log-group-name security-track-cloudtrail-logs --region us-east-1
 ```
 
 **✅ No output means success.**
@@ -270,12 +235,12 @@ aws logs create-log-group --log-group-name lab5b-cloudtrail-logs --region us-eas
 Set a 30-day retention policy so logs are automatically cleaned up:
 
 ```
-aws logs put-retention-policy --log-group-name lab5b-cloudtrail-logs --retention-in-days 30 --region us-east-1
+aws logs put-retention-policy --log-group-name security-track-cloudtrail-logs --retention-in-days 30 --region us-east-1
 ```
 
 **✅ No output means success.**
 
-**Step 3f: Create an IAM role so CloudTrail can write to CloudWatch Logs**
+**Step 3e: Create an IAM role so CloudTrail can write to CloudWatch Logs**
 
 CloudTrail needs explicit permission to send events to your log group. You grant this with a dedicated IAM role.
 
@@ -301,10 +266,10 @@ In the VS Code file tree, create a **New File** named `cloudtrail-trust-policy.j
 Create the role:
 
 ```
-aws iam create-role --role-name lab5b-cloudtrail-role --assume-role-policy-document file://cloudtrail-trust-policy.json
+aws iam create-role --role-name security-track-cloudtrail-role --assume-role-policy-document file://cloudtrail-trust-policy.json
 ```
 
-**✅ You should see** JSON output with `"RoleName": "lab5b-cloudtrail-role"`.
+**✅ You should see** JSON output with `"RoleName": "security-track-cloudtrail-role"`.
 
 Now create another **New File** named `cloudtrail-logs-policy.json`. 📋 Copy and paste this entire block into it, **replacing `<ACCOUNT_ID>`**:
 
@@ -318,7 +283,7 @@ Now create another **New File** named `cloudtrail-logs-policy.json`. 📋 Copy a
                 "logs:CreateLogStream",
                 "logs:PutLogEvents"
             ],
-            "Resource": "arn:aws:logs:us-east-1:<ACCOUNT_ID>:log-group:lab5b-cloudtrail-logs:*"
+            "Resource": "arn:aws:logs:us-east-1:<ACCOUNT_ID>:log-group:security-track-cloudtrail-logs:*"
         }
     ]
 }
@@ -329,35 +294,24 @@ Now create another **New File** named `cloudtrail-logs-policy.json`. 📋 Copy a
 Attach the permissions to the role:
 
 ```
-aws iam put-role-policy --role-name lab5b-cloudtrail-role --policy-name CloudWatchLogsWrite --policy-document file://cloudtrail-logs-policy.json
+aws iam put-role-policy --role-name security-track-cloudtrail-role --policy-name CloudWatchLogsWrite --policy-document file://cloudtrail-logs-policy.json
 ```
 
 **✅ No output means success.**
 
-**Step 3g: Create the CloudTrail trail**
+**Step 3f: Upgrade the trail to stream to CloudWatch Logs**
 
-First, let's make sure we don't have any active trails as only the first one is free.
+Attach the log group and role to your existing trail with `update-trail`. This adds CloudWatch Logs streaming to the trail you already have — no new trail is created.
 
-```
-aws cloudtrail describe-trails --query "trailList[].Name" --output text
-```
-
-If you do have an active trail from a previous lab you can delete it using the following command:
+📋 Copy and paste, **replacing `<ACCOUNT_ID>`**:
 
 ```
-aws cloudtrail delete-trail --name <TRAIL_NAME>
-```
-Run the previous command to confirm the trail was deleted. After you verify we can create a new trail.
-
-📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`, `<ACCOUNT_ID>`**:
-
-```
-aws cloudtrail create-trail --name lab5b-trail --s3-bucket-name <TRAIL_BUCKET_NAME> --cloud-watch-logs-log-group-arn arn:aws:logs:us-east-1:<ACCOUNT_ID>:log-group:lab5b-cloudtrail-logs:* --cloud-watch-logs-role-arn arn:aws:iam::<ACCOUNT_ID>:role/lab5b-cloudtrail-role --region us-east-1
+aws cloudtrail update-trail --name workshop-security-trail --cloud-watch-logs-log-group-arn arn:aws:logs:us-east-1:<ACCOUNT_ID>:log-group:security-track-cloudtrail-logs:* --cloud-watch-logs-role-arn arn:aws:iam::<ACCOUNT_ID>:role/security-track-cloudtrail-role --region us-east-1
 ```
 
-**✅ You should see** JSON output with `"Name": "lab5b-trail"` and both the S3 bucket and CloudWatch log group ARNs listed.
+**✅ You should see** JSON output for `workshop-security-trail` now listing the CloudWatch log group and role ARNs.
 
-**Step 3h: Enable data event logging for the evidence bucket**
+**Step 3g: Enable data event logging for the evidence bucket**
 
 This is the key step — it tells the trail to record every object-level operation (downloads, uploads) on your evidence bucket, not just bucket-level management events.
 
@@ -381,33 +335,27 @@ In the VS Code file tree, create a **New File** named `event-selectors.json`. �
 **Save** the file (**Ctrl+S** / **Cmd+S**), then apply:
 
 ```
-aws cloudtrail put-event-selectors --trail-name lab5b-trail --event-selectors file://event-selectors.json
+aws cloudtrail put-event-selectors --trail-name workshop-security-trail --event-selectors file://event-selectors.json
 ```
 
 **✅ You should see** JSON confirming `"ReadWriteType": "All"` and your bucket ARN under `DataResources`.
 
-**Step 3i: Start logging**
+**Step 3h: Confirm the trail is logging**
+
+Your trail has been logging since Lab 3C, but confirm it's active:
 
 ```
-aws cloudtrail start-logging --name lab5b-trail
+aws cloudtrail get-trail-status --name workshop-security-trail --query "{IsLogging:IsLogging,LatestDeliveryError:LatestDeliveryError}"
 ```
 
-**✅ No output means success.**
+**✅ You should see:** `{ "IsLogging": true }` with no delivery error. If `IsLogging` is `false`, run `aws cloudtrail start-logging --name workshop-security-trail`.
 
-Verify the trail is active:
-
-```
-aws cloudtrail get-trail-status --name lab5b-trail --query "{IsLogging:IsLogging,LatestDeliveryError:LatestDeliveryError}"
-```
-
-**✅ You should see:** `{ "IsLogging": true }` with no delivery error.
-
-> **What did you just build?**
-> - A CloudTrail trail delivering structured logs to an S3 bucket (for long-term archival)
-> - The same trail streaming every event to CloudWatch Logs in near-real time (for live investigation)
-> - S3 data event logging scoped to your evidence bucket (so file downloads are recorded)
+> **What did you just do?** You took the security-track trail from Lab 3C and upgraded it into a full forensic recorder:
+> - It still delivers structured logs to your S3 bucket (long-term archival)
+> - It now **also streams every event to CloudWatch Logs** in near-real time (for live investigation with Log Analytics)
+> - It now captures **S3 data events** on your evidence bucket (so file downloads are recorded)
 >
-> Every API call made against your evidence bucket — including who downloaded what and when — will now appear in CloudWatch Logs within minutes.
+> Every API call against your evidence bucket — including who downloaded what and when — will now appear in CloudWatch Logs within minutes.
 
 ---
 
@@ -617,15 +565,15 @@ aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,Attribute
 +-----------------------------+--------------------+-----------------+
 ```
 
-> **⚠️ Important limitation:** `aws cloudtrail lookup-events` queries CloudTrail Event History, not the trail's log files. It returns **management events only** — regardless of whether a trail with data events is configured. The `GetObject` event (the file download) will NOT appear here. This is why CloudWatch Logs Insights is required for a complete investigation.
+> **⚠️ Important limitation:** `aws cloudtrail lookup-events` queries CloudTrail Event History, not the trail's log files. It returns **management events only** — regardless of whether a trail with data events is configured. The `GetObject` event (the file download) will NOT appear here. This is why CloudWatch Log Analytics is required for a complete investigation.
 >
-> Use this CLI output as a quick first pass to confirm the attacker's identity and timestamp. Use Logs Insights in Step 8 for the full forensic picture.
+> Use this CLI output as a quick first pass to confirm the attacker's identity and timestamp. Use Log Analytics in Step 8 for the full forensic picture.
 
 ---
 
-### Step 8: Investigate — CloudWatch Logs Insights (Full Forensic Timeline)
+### Step 8: Investigate — CloudWatch Log Analytics (Full Forensic Timeline)
 
-This is the primary investigation step. CloudWatch Logs Insights queries the trail's log stream directly, which includes both management events and data events. You will filter by the compromised account's identity to reconstruct everything the attacker did.
+This is the primary investigation step. CloudWatch Log Analytics queries the trail's log stream directly, which includes both management events and data events. You will filter by the compromised account's identity to reconstruct everything the attacker did.
 
 **Step 8a: Open CloudWatch Logs in the console**
 
@@ -636,7 +584,7 @@ This is the primary investigation step. CloudWatch Logs Insights queries the tra
 **Step 8b: Select the log group**
 
 1. Where it says **Log group** dropdown, select **All** to open search log group
-2. Type `lab5b-cloudtrail-logs` and select it, or scroll and select it
+2. Type `security-track-cloudtrail-logs` and select it, or scroll and select it
 3. Set the time range to **Last 1 hour** (or **Custom** if you started the lab more than an hour ago)
 
 **Step 8c: Run the investigation query**
@@ -700,7 +648,7 @@ Click **Run query**.
 
 **✅ You should see** a single row confirming: who downloaded the file, which bucket, which file, at what time, and from which IP address. This one record is the core evidence of data exfiltration for your incident report.
 
-> **💡 In a real incident**, you would copy the full JSON of this event and attach it as an exhibit to the incident report. Click on any row in Logs Insights to expand the full raw event.
+> **💡 In a real incident**, you would copy the full JSON of this event and attach it as an exhibit to the incident report. Click on any row in Log Analytics to expand the full raw event.
 
 ---
 
@@ -773,10 +721,10 @@ aws iam delete-user --user-name attacker-simulation
 | Time (UTC) | Event | Details | Evidence Source |
 |------------|-------|---------|-----------------|
 | [TIME] | Attacker credentials created | Access key created for attacker-simulation | CloudTrail — management event (CLI lookup-events) |
-| [TIME] | Attacker authenticated | GetCallerIdentity called | CloudTrail — management event (CLI lookup-events + Logs Insights) |
-| [TIME] | Reconnaissance | ListBuckets — attacker surveyed all S3 buckets | CloudTrail — management event (CLI lookup-events + Logs Insights) |
-| [TIME] | Data discovery | ListObjects on [BUCKET NAME] — attacker enumerated bucket contents | CloudTrail — data event (CloudWatch Logs Insights only) |
-| [TIME] | Data exfiltration | GetObject on sensitive-data.txt — file downloaded from [BUCKET NAME] | CloudTrail — data event (CloudWatch Logs Insights only) |
+| [TIME] | Attacker authenticated | GetCallerIdentity called | CloudTrail — management event (CLI lookup-events + Log Analytics) |
+| [TIME] | Reconnaissance | ListBuckets — attacker surveyed all S3 buckets | CloudTrail — management event (CLI lookup-events + Log Analytics) |
+| [TIME] | Data discovery | ListObjects on [BUCKET NAME] — attacker enumerated bucket contents | CloudTrail — data event (CloudWatch Log Analytics only) |
+| [TIME] | Data exfiltration | GetObject on sensitive-data.txt — file downloaded from [BUCKET NAME] | CloudTrail — data event (CloudWatch Log Analytics only) |
 | [TIME] | Containment | Access key [KEY ID] deactivated | Responder action |
 | [TIME] | Eradication | attacker-simulation user and all credentials deleted | Responder action |
 
@@ -785,20 +733,20 @@ aws iam delete-user --user-name attacker-simulation
 | Resource | Type | Impact |
 |----------|------|--------|
 | [YOUR BUCKET NAME] | S3 Bucket | Unauthorized read access |
-| sensitive-data.txt | S3 Object | Confirmed download via GetObject (CloudWatch Logs Insights) |
+| sensitive-data.txt | S3 Object | Confirmed download via GetObject (CloudWatch Log Analytics) |
 | attacker-simulation | IAM User | Unauthorized user with S3 read access; now deleted |
 
 ## Key Forensic Evidence
 
-**GetObject event (data exfiltration — from CloudWatch Logs Insights):**
+**GetObject event (data exfiltration — from CloudWatch Log Analytics):**
 
 | Field | Value |
 |-------|-------|
-| Event Time | [TIMESTAMP FROM LOGS INSIGHTS] |
+| Event Time | [TIMESTAMP FROM LOG ANALYTICS] |
 | Event Name | GetObject |
 | Username | attacker-simulation |
 | Access Key ID | [KEY ID] |
-| Source IP | [IP FROM LOGS INSIGHTS] |
+| Source IP | [IP FROM LOG ANALYTICS] |
 | Bucket | [EVIDENCE BUCKET NAME] |
 | Object Key | sensitive-data.txt |
 
@@ -828,7 +776,7 @@ aws iam delete-user --user-name attacker-simulation
 
 **Step 11c:** **Save** the file (**Ctrl+S** / **Cmd+S**). You should see `incident-report.md` in the file tree.
 
-**Step 11d:** Fill in the template using the timestamps and data from Steps 7 and 8. Pay attention to the **Evidence Source** column — note which events were only visible in CloudWatch Logs Insights (data events) versus which also appeared in the CLI `lookup-events` output (management events). This distinction goes directly into the Key Forensic Evidence section.
+**Step 11d:** Fill in the template using the timestamps and data from Steps 7 and 8. Pay attention to the **Evidence Source** column — note which events were only visible in CloudWatch Log Analytics (data events) versus which also appeared in the CLI `lookup-events` output (management events). This distinction goes directly into the Key Forensic Evidence section.
 
 ---
 
@@ -845,16 +793,16 @@ aws iam delete-user --user-name attacker-simulation
 **Part B — CloudTrail Trail:**
 
 1. In the left sidebar, click **Trails**
-2. Click **lab5b-trail**
+2. Click **workshop-security-trail**
 3. Confirm the trail shows: S3 bucket, CloudWatch log group, and data events configured for your evidence bucket
 
-**Part C — CloudWatch Logs Insights:**
+**Part C — CloudWatch Log Analytics:**
 
-1. Navigate to CloudWatch → Logs → Logs Insights
+1. Navigate to CloudWatch → Logs → Log Analytics
 2. Re-run the query from Step 8c
 3. Confirm `GetObject` on `sensitive-data.txt` appears in the results
 
-**✅ Checkpoint:** You can see that Event History shows a partial picture (management events only), while Logs Insights shows the complete forensic record including data exfiltration. This is why CloudTrail + CloudWatch Logs is the production-grade investigation setup.
+**✅ Checkpoint:** You can see that Event History shows a partial picture (management events only), while Log Analytics shows the complete forensic record including data exfiltration. This is why CloudTrail + CloudWatch Logs is the production-grade investigation setup.
 
 ---
 
@@ -863,7 +811,7 @@ aws iam delete-user --user-name attacker-simulation
 You executed a complete incident response following the NIST framework:
 
 1. **Preparation** — Built a CloudTrail trail with data events and CloudWatch Logs before the attack
-2. **Detection & Analysis** — Identified the breach and reconstructed the full timeline using Logs Insights
+2. **Detection & Analysis** — Identified the breach and reconstructed the full timeline using Log Analytics
 3. **Containment** — Deactivated the attacker's credentials
 4. **Eradication** — Removed the attacker completely
 5. **Recovery** — Verified the threat is eliminated
@@ -872,7 +820,7 @@ You executed a complete incident response following the NIST framework:
 You practiced four critical IR skills:
 - **Proactive logging** — Configuring a trail before an incident so all evidence is preserved
 - **Management vs. data events** — Understanding the exact limitation of `lookup-events` and why CloudWatch is needed
-- **Forensic querying** — Writing Logs Insights queries filtered by compromised identity (username and access key ID)
+- **Forensic querying** — Writing Log Analytics queries filtered by compromised identity (username and access key ID)
 - **Incident documentation** — Writing a professional report that cites its evidence sources
 
 ---
@@ -883,11 +831,11 @@ You practiced four critical IR skills:
 
 | Topic | What You Practiced |
 |-------|--------------------|
-| CloudTrail trail creation | Steps 3g–3i |
-| S3 data event logging | Step 3h |
-| CloudTrail → CloudWatch Logs integration | Steps 3e–3g |
+| CloudTrail trail creation & update | Lab 3C (create) + Step 3f (`update-trail`) |
+| S3 data event logging | Step 3g |
+| CloudTrail → CloudWatch Logs integration | Steps 3d–3f |
 | Management events vs. data events | Steps 7 vs. 8 |
-| CloudWatch Logs Insights queries | Step 8c–8e |
+| CloudWatch Log Analytics queries | Step 8c–8e |
 | Querying by access key ID | Step 8d |
 | NIST IR Lifecycle | All steps |
 
@@ -895,7 +843,7 @@ You practiced four critical IR skills:
 **Answer:** `lookup-events` and Event History return management events only. A CloudTrail trail with S3 data event logging must be configured before the incident to capture object-level access.
 
 **Sample exam question:** "A SOC analyst receives a GuardDuty alert containing a compromised IAM access key ID. Which service and query approach gives the analyst a complete timeline of all API calls made with that key, including S3 object downloads?"  
-**Answer:** CloudWatch Logs Insights, querying the CloudTrail log group filtered by `userIdentity.accessKeyId`.
+**Answer:** CloudWatch Log Analytics, querying the CloudTrail log group filtered by `userIdentity.accessKeyId`.
 
 **Sample exam question:** "A company needs to ensure that any future S3 data access is queryable within minutes of occurring. Which combination of services satisfies this requirement?"  
 **Answer:** CloudTrail trail with S3 data event logging enabled, integrated with CloudWatch Logs.
@@ -906,12 +854,12 @@ You practiced four critical IR skills:
 
 | Issue | What It Means | How to Fix It |
 |-------|--------------|---------------|
-| `create-trail` returns `InsufficientS3BucketPolicyException` | CloudTrail cannot write to the logging bucket | Re-check `trail-policy.json` — ensure `<TRAIL_BUCKET_NAME>` and `<ACCOUNT_ID>` were replaced correctly, then re-apply the policy |
-| `create-trail` returns an error about CloudWatch Logs role | IAM role permissions are not yet propagated | Wait 10 seconds and retry — IAM changes take a moment to propagate |
+| `InsufficientS3BucketPolicyException` (only if you used the Step 3c fallback to create the trail) | CloudTrail cannot write to the log bucket | Re-check `trail-policy.json` — ensure the bucket name and your account ID were filled in correctly, then re-apply the policy |
+| `update-trail` returns an error about the CloudWatch Logs role | IAM role permissions are not yet propagated | Wait 10 seconds and retry — IAM changes take a moment to propagate |
 | `get-trail-status` shows `LatestDeliveryError` | CloudTrail cannot deliver to S3 | Verify the bucket policy was applied and the bucket name in the trail matches exactly |
-| Logs Insights query returns no results | Events have not arrived yet, or wrong time range | Set the time range to **Last 1 hour** and wait 10 more minutes. CloudTrail delivers to CloudWatch within 5–15 minutes |
-| `GetObject` not appearing in Logs Insights | The trail was not active when the attack ran, OR data events were not configured | Verify the trail is logging (`get-trail-status`), re-run the attack steps (5c–5e), wait 15 minutes, and query again |
-| `lookup-events` does not show `GetObject` | This is expected — `lookup-events` only returns management events | Use CloudWatch Logs Insights (Step 8) for data events |
+| Log Analytics query returns no results | Events have not arrived yet, or wrong time range | Set the time range to **Last 1 hour** and wait 10 more minutes. CloudTrail delivers to CloudWatch within 5–15 minutes |
+| `GetObject` not appearing in Log Analytics | The trail was not active when the attack ran, OR data events were not configured | Verify the trail is logging (`get-trail-status`), re-run the attack steps (5c–5e), wait 15 minutes, and query again |
+| `lookup-events` does not show `GetObject` | This is expected — `lookup-events` only returns management events | Use CloudWatch Log Analytics (Step 8) for data events |
 | `get-caller-identity` still shows attacker after switching back | Env vars were not cleared | Run the switch-back commands in Step 5f again. Close and reopen terminal if needed |
 | Cannot delete attacker user | User still has policies or access keys | Delete in order: access key → user policy → user (Steps 10a, 10b, 10c) |
 
@@ -919,55 +867,11 @@ You practiced four critical IR skills:
 
 ## Cleanup
 
-**⚠️ Run all cleanup steps in order. Skipping steps may leave billable resources running.**
+**⚠️ Run these steps in order.**
 
-### Step 1: Stop and Delete the CloudTrail Trail
+> **🔗 Keep the shared trail running.** The `workshop-security-trail` trail (now upgraded with CloudWatch Logs + data events), its log group `security-track-cloudtrail-logs`, the `security-track-cloudtrail-role` role, and the `<TRAIL_BUCKET_NAME>` log bucket are the **shared security-track backbone** — **Lab 5C reuses the trail**. Leave them running and remove only this lab's own resources below. You'll tear the whole backbone down with the **Final Track Teardown** at the end of Lab 5C. (If you're stopping the security track here instead, go run that Final Track Teardown to remove them.)
 
-```
-aws cloudtrail stop-logging --name lab5b-trail
-```
-
-```
-aws cloudtrail delete-trail --name lab5b-trail
-```
-
-**✅ No output means success.**
-
-### Step 2: Delete the CloudWatch Log Group
-
-```
-aws logs delete-log-group --log-group-name lab5b-cloudtrail-logs --region us-east-1
-```
-
-**✅ No output means success.**
-
-### Step 3: Delete the IAM Role
-
-```
-aws iam delete-role-policy --role-name lab5b-cloudtrail-role --policy-name CloudWatchLogsWrite
-```
-
-```
-aws iam delete-role --role-name lab5b-cloudtrail-role
-```
-
-**✅ No output means success.**
-
-### Step 4: Delete the CloudTrail Logging Bucket
-
-📋 Copy and paste, **replacing `<TRAIL_BUCKET_NAME>`**:
-
-```
-aws s3 rm s3://<TRAIL_BUCKET_NAME> --recursive
-```
-
-```
-aws s3 rb s3://<TRAIL_BUCKET_NAME>
-```
-
-**✅ You should see:** `remove_bucket: <TRAIL_BUCKET_NAME>`
-
-### Step 5: Delete the Evidence Bucket
+### Step 1: Delete the Evidence Bucket
 
 📋 Copy and paste, **replacing `<EVIDENCE_BUCKET_NAME>`**:
 
@@ -981,7 +885,7 @@ aws s3 rb s3://<EVIDENCE_BUCKET_NAME>
 
 **✅ You should see:** `remove_bucket: <EVIDENCE_BUCKET_NAME>`
 
-### Step 6: Verify Attacker User Is Deleted
+### Step 2: Verify Attacker User Is Deleted
 
 ```
 aws iam get-user --user-name attacker-simulation
@@ -997,7 +901,7 @@ aws iam get-user --user-name attacker-simulation
 > aws iam delete-user --user-name attacker-simulation
 > ```
 
-### Step 7: Delete Local Files
+### Step 3: Delete Local Files
 
 > **⚠️ Close VS Code first.** If VS Code still has the `workshop-lab-5b` folder open, the delete will fail — especially on Windows. Choose **File → Close Folder** or quit VS Code before running the commands below.
 
