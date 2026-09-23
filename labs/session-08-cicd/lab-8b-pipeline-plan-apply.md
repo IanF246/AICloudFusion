@@ -29,7 +29,7 @@ By the end you will have opened a pull request, watched a plan run automatically
   - Your `workshop-iac` repo pushed to GitHub
   - The GitHub OIDC provider and the `github-actions-infra` pipeline role
   - The state backend and `workshop-tofu-deploy-role` from Session 7
-- ✅ Your **pipeline role ARN** from Lab 8A (`arn:aws:iam::<ACCOUNT_ID>:role/github-actions-infra`)
+- ✅ Your **pipeline role ARN** from Lab 8A (`arn:aws:iam::<YOUR_ACCOUNT_ID>:role/github-actions-infra`)
 
 ---
 
@@ -37,8 +37,9 @@ By the end you will have opened a pull request, watched a plan run automatically
 
 | Service | What It Is | Cost |
 |---------|-----------|------|
-| GitHub Actions | Pipeline runner | Free minutes (generous free tier) |
-| AWS Lambda / S3 / IAM / Logs | Resources the pipeline deploys | Within Always Free / 12-month free tier |
+| GitHub Actions | Pipeline runner | Free — 2,000 minutes/month for private repos on GitHub's Free plan |
+| Amazon S3 | The demo bucket the pipeline creates | $0.023 per GB/month — the bucket is essentially empty, so effectively $0 |
+| AWS IAM | Roles the pipeline uses | Always Free |
 
 **Estimated cost for this lab: $0.00**
 
@@ -240,10 +241,15 @@ git push
 
 **Step 4c: ✅ Verify the deploy actually happened.** 📋 In your terminal:
 
-```
+**Windows (PowerShell):**
+```powershell
 aws s3 ls | Select-String "cicd-demo"
 ```
-(Mac/Linux: `aws s3 ls | grep cicd-demo`)
+
+**macOS / Linux:**
+```bash
+aws s3 ls | grep cicd-demo
+```
 
 **✅ You should see** `workshop-dev-cicd-demo-<YOUR_ACCOUNT_ID>`.
 
@@ -373,8 +379,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Verify confirmation
+        env:
+          CONFIRM: ${{ github.event.inputs.confirm }}
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "destroy" ]; then
+          if [ "$CONFIRM" != "destroy" ]; then
             echo "Confirmation text was not exactly 'destroy'. Aborting - nothing was changed."
             exit 1
           fi
@@ -405,6 +413,7 @@ jobs:
 > | `workflow_dispatch` only (no `push`/`schedule`) | It can NEVER run automatically — only a human clicking the button starts it |
 > | `inputs: confirm` | Forces the person to type a confirmation word before the run starts |
 > | `Verify confirmation` step | Runs first (after checkout) and **aborts** unless the word is exactly `destroy` — before touching AWS |
+> | `env: CONFIRM:` instead of inline `${{ }}` in the script | Passes the typed value in as an environment variable rather than pasting it straight into the shell command. Dropping untrusted input directly into a `run:` script is a known injection risk; routing it through `env:` is the safe pattern for *any* user- or event-supplied value |
 
 **Step 7b:** Commit and push. 📋 Copy and paste (from the project root):
 
@@ -426,10 +435,15 @@ git push
 
 **Step 7d: ✅ Verify nothing was destroyed.** 📋 In your terminal:
 
-```
+**Windows (PowerShell):**
+```powershell
 aws s3 ls | Select-String "cicd-demo"
 ```
-(Mac/Linux: `aws s3 ls | grep cicd-demo`)
+
+**macOS / Linux:**
+```bash
+aws s3 ls | grep cicd-demo
+```
 
 **✅ You should still see** your demo bucket — the wrong confirmation blocked the destroy.
 
