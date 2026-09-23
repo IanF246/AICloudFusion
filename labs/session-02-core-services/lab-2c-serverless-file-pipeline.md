@@ -39,7 +39,7 @@ This is a real-world architecture pattern — serverless web applications that p
 |---------|-----------|----------------|
 | AWS Lambda | Serverless compute | 1 million requests/month always free |
 | Amazon S3 | Cloud storage + website hosting | $0.023 per GB/month |
-| Lambda Function URLs | Public HTTP endpoint for Lambda | Included with Lambda free tier |
+| Lambda Function URLs | Public HTTP endpoint for Lambda | No extra charge — billed as normal Lambda invocations |
 | IAM | Access management | Always Free |
 
 **Estimated cost for this lab: ~$0.02** (effectively $0.00 if you complete the cleanup steps promptly)
