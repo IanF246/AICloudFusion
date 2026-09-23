@@ -42,10 +42,10 @@ In this lab, you will:
 
 | Service | What It Is | Cost |
 |---------|-----------|------|
-| Amazon CloudFront | Global CDN + HTTPS | 1 TB data transfer + 10M requests **always free** |
-| Amazon S3 | Static file storage | Already within free tier from Lab 1C |
+| Amazon CloudFront | Global CDN + HTTPS | 1 TB data transfer + 10M requests/month **always free** |
+| Amazon S3 | Static file storage | $0.023 per GB/month — the same tiny site bucket from Lab 1C (a few KB), effectively $0 |
 
-**Estimated cost for this lab: $0.00** — CloudFront's free tier is generous. A student portfolio site serves well under 1 TB per month.
+**Estimated cost for this lab: $0.00** — CloudFront's always-free tier (1 TB/month) easily covers a student portfolio site.
 
 ---
 
