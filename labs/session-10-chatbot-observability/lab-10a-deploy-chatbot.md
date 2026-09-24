@@ -19,7 +19,9 @@ In this lab you'll deploy a "trivia chatbot" Lambda function that:
 3. **Returns a formatted response** with category, question, and answer
 4. **Logs structured JSON** to CloudWatch at every stage (request received, API call result with latency, request completed)
 
-**Why structured logging?** Plain text logs look like `"Got a request from user"` — fine for a developer reading one log, but impossible to search or filter across thousands. Structured JSON logs like `{"event": "api_call_success", "api_latency_ms": 342}` let you query, filter, and alert on specific fields. In Lab 10B, you'll use CloudWatch Logs Insights to query these structured logs and answer questions like "what's our average API latency?" and "how many requests failed?"
+**Why structured logging?** Plain text logs look like `"Got a request from user"` — fine for a developer reading one log, but impossible to search or filter across thousands. Structured JSON logs like `{"event": "api_call_success", "api_latency_ms": 342}` let you query, filter, and alert on specific fields. In Lab 10B, you'll turn these structured logs into metrics, a dashboard, and an alarm that answer questions like "what's our API latency?" and "how many requests failed?"
+
+> **🔗 Well-Architected callback — Operational Excellence, continued from Session 9.** In Session 9 you detected a failing function with an alarm (9A), diagnosed it from its logs (9B), and blocked bad deploys with a smoke test (9C). Those logs were plain text you read one line at a time. Session 10 takes the next step: an app that calls a dependency you *don't* control, with logs designed to be queried, not just read. Operational Excellence means instrumenting your workload so you understand its health, including the services it relies on.
 
 ---
 
@@ -36,18 +38,19 @@ In this lab you'll deploy a "trivia chatbot" Lambda function that:
 
 | Service | What It Is | Cost |
 |---------|-----------|------|
-| AWS Lambda | Serverless function execution | Always Free (1M requests/month) |
-| Amazon CloudWatch Logs | Log storage and search | Always Free (5GB ingestion/month) |
+| AWS Lambda | Serverless function execution | Always Free (1M requests + 400,000 GB-seconds/month) |
+| Amazon CloudWatch Logs | Log storage and search | Always Free (5 GB/month of log data: ingestion, storage, and Log Analytics scanning) |
+| Open Trivia Database | Third-party public API | Free (not an AWS service) |
 
 **Estimated cost for this lab: $0.00**
 
-All services used are within the AWS Always Free tier. Complete the Cleanup section at the end to remove resources.
+Lambda and CloudWatch Logs are **Always Free** services, which stay free on any account (not just new ones). This lab uses a tiny fraction of those limits. Complete the Cleanup section at the end to remove resources.
 
 ---
 
 ## Concepts
 
-**AWS Lambda** — a serverless compute service. You upload code, and AWS runs it when triggered — no servers to manage. You only pay for the milliseconds your code actually runs. Lambda automatically scales: if 1,000 people call your chatbot at once, AWS spins up 1,000 copies of your function.
+**AWS Lambda** — a serverless compute service. You upload code, and AWS runs it when triggered — no servers to manage. You only pay for the milliseconds your code actually runs. Lambda automatically scales: if many people call your chatbot at once, AWS runs many copies of your function in parallel, up to your account's **concurrency limit** (1,000 by default, but often much lower on new accounts until AWS raises it).
 
 **External API Call** — when your code calls another service over the internet to get data. In this lab, your Lambda function calls the Open Trivia Database API to fetch a trivia question. This is how real applications work: a chatbot might call OpenAI, a weather app calls a weather API, a payment system calls Stripe. The challenge? External APIs can be slow, return errors, or go down entirely — and you need to know when that happens.
 
@@ -62,13 +65,13 @@ All services used are within the AWS Always Free tier. Complete the Cleanup sect
 
 Both contain the same info, but only the JSON version lets you run queries like "average api_latency_ms over the last hour" or "count of entries where api_status != 200." Production teams always use structured logging because they operate at a scale where reading individual log lines is impossible.
 
-**CloudWatch Logs** — AWS's log storage and query service. Every Lambda function automatically sends its `print()` and `logger.info()` output here. You can view logs in the console, search them, and (in Lab 10B) run SQL-like queries across them with CloudWatch Logs Insights.
+**CloudWatch Logs** — AWS's log storage and query service. Every Lambda function automatically sends its `print()` and `logger.info()` output here. You can view logs in the console, search them, turn them into metrics with **metric filters** (Lab 10B), and run SQL-like queries across them with **CloudWatch Log Analytics** (Lab 10C).
 
 ---
 
 ## ⚠️ Reminder: How to Read Commands
 
-Commands go in your terminal (PowerShell on Windows, Terminal on Mac/Linux). Files are created in a text editor (VS Code recommended — right-click folder → New File).
+Commands go in your terminal (PowerShell on Windows, Terminal on Mac/Linux). Files are created in VS Code: create the file by name in the file tree first, paste the contents, then save (**Ctrl+S** / **Cmd+S**).
 
 | Placeholder | What to Replace It With | Example |
 |-------------|------------------------|---------|
@@ -123,17 +126,26 @@ pwd
 
 **✅ You should see** the path to your new folder (e.g., `C:\Users\YourName\Desktop\workshop-lab-10a`).
 
+**Step 1d:** Open the folder in VS Code. 📋 Copy and paste:
+
+```
+code .
+```
+
+**✅ VS Code opens** with `WORKSHOP-LAB-10A` in the Explorer sidebar. You'll create every file for this lab there. Keep your terminal open for commands.
+
 ---
 
 ### Step 2: Create the Chatbot Lambda Function Code
 
 This is the chatbot code. It receives a user message, calls the Open Trivia Database API to get a trivia question, and returns the result — logging structured JSON at every step.
 
-**Step 2a:** Open your text editor and create a new file as `handler.py` in your `workshop-lab-10a` folder.
+**Step 2a:** In VS Code's Explorer, click the **New File** icon and name it `handler.py`.
 
-**Step 2b:** 📋 Copy and paste this code:
+**Step 2b:** 📋 Copy and paste this code into `handler.py`:
 
 ```python
+import html
 import json
 import logging
 import time
@@ -185,11 +197,11 @@ def lambda_handler(event, context):
             "api_latency_ms": api_latency_ms
         }))
 
-        # Format the trivia question
+        # Format the trivia question (the API HTML-encodes text, e.g. &quot; -> ")
         question_data = api_data["results"][0]
-        question = question_data["question"]
-        correct = question_data["correct_answer"]
-        category = question_data["category"]
+        question = html.unescape(question_data["question"])
+        correct = html.unescape(question_data["correct_answer"])
+        category = html.unescape(question_data["category"])
 
         bot_response = (
             f"Category: {category}\n"
@@ -231,9 +243,7 @@ def lambda_handler(event, context):
     }
 ```
 
-**Step 2c:** Save the file as `handler.py` in your `workshop-lab-10a` folder.
-
-> ⚠️ **Windows users:** in Notepad, change "Save as type" to **"All Files"** so it saves as `handler.py` and not `handler.py.txt`.
+**Step 2c:** Save the file (**Ctrl+S** / **Cmd+S**).
 
 **Step 2d: What does this code do?**
 
@@ -245,7 +255,9 @@ This function has three main phases, and it logs structured JSON at each one:
 | 2. Call external API | Hits the Open Trivia Database, measures how long it takes | `api_call_success` or `api_call_failed` |
 | 3. Return response | Formats the trivia question and sends it back | `request_completed` |
 
-The key insight: every log entry is a JSON object with consistent fields (`event`, `request_id`, `api_latency_ms`). This means in Lab 10B you'll be able to query things like "average API latency across all requests" or "show me all failed API calls."
+> **Why `html.unescape`?** The trivia API sends its text HTML-encoded, so a question arrives as `What kind of instrument is a &quot;Mandolin&quot;?`. `html.unescape()` turns `&quot;` back into `"` (and `&#039;` into `'`, and so on) so users see clean text. Handling the quirks of an external API's data format is part of integrating with it.
+
+The key insight: every log entry is a JSON object with consistent fields (`event`, `request_id`, `api_latency_ms`). This means in Lab 10B you'll be able to pull out things like "API latency for every successful call" or "a count of all failed API calls" automatically.
 
 ---
 
@@ -253,7 +265,7 @@ The key insight: every log entry is a JSON object with consistent fields (`event
 
 Before Lambda can run your code, it needs an **IAM role** — permission to exist and write logs.
 
-**Step 3a:** Create the trust policy file with the name `lambda-trust.json` in your `workshop-lab-10a` folder. Open your text editor → new file. 📋 Copy and paste:
+**Step 3a:** In VS Code, create a new file named `lambda-trust.json`. 📋 Copy and paste:
 
 ```json
 {
@@ -270,7 +282,7 @@ Before Lambda can run your code, it needs an **IAM role** — permission to exis
 }
 ```
 
-**Step 3b:** Save it as `lambda-trust.json` in your `workshop-lab-10a` folder.
+**Step 3b:** Save the file (**Ctrl+S** / **Cmd+S**).
 
 > **What does this do?** It tells AWS "the Lambda service is allowed to assume this role." Without this, Lambda can't use the role to run your code or write logs.
 
@@ -332,21 +344,29 @@ aws lambda create-function --function-name workshop-chatbot-lab10 --runtime pyth
 > - `--timeout 10` — kill the function if it runs longer than 10 seconds (important since we're calling an external API that could hang)
 > - `--memory-size 128` — allocate 128 MB of memory (the minimum; this also determines CPU power)
 
+**Step 4c:** Wait for the function to finish creating. 📋 Copy and paste:
+
+```
+aws lambda wait function-active --function-name workshop-chatbot-lab10 --region us-east-1
+```
+
+**✅ No output means success** — the command returns once the function's `State` is `Active`.
+
+> **Why wait?** A brand-new function starts in `Pending` while AWS sets it up. Invoking it before it's `Active` fails with `ResourceConflictException`. This is the same wait used in Lab 9C's pipeline.
+
 ---
 
 ### Step 5: Invoke the Chatbot and See the Trivia Response
 
 Now you'll call your chatbot! You'll send it a message using a payload file, and it will call the trivia API and return a question.
 
-**Step 5a:** Create the payload file with the name `payload.json` in your `workshop-lab-10a` folder. Open your text editor → new file. 📋 Copy and paste:
+**Step 5a:** In VS Code, create a new file named `payload.json`. 📋 Copy and paste:
 
 ```json
 {"body": "{\"message\": \"Give me a trivia question\"}"}
 ```
 
-**Step 5b:** Save it as `payload.json` in your `workshop-lab-10a` folder.
-
-> ⚠️ **Windows users:** in Notepad, change "Save as type" to **"All Files"** so it saves as `payload.json` and not `payload.json.txt`.
+**Step 5b:** Save the file (**Ctrl+S** / **Cmd+S**).
 
 > **What does this do?** This simulates what a real user request would look like. The `body` field contains a JSON string with the user's message. Your Lambda function parses this to read the user's input.
 
@@ -354,13 +374,7 @@ Now you'll call your chatbot! You'll send it a message using a payload file, and
 
 > **⚠️ Make sure you're in your `workshop-lab-10a` folder** where `payload.json` is saved. Run `pwd` to check.
 
-**Windows (PowerShell):**
-```powershell
-aws lambda invoke --function-name workshop-chatbot-lab10 --region us-east-1 --cli-binary-format raw-in-base64-out --payload file://payload.json response.json
 ```
-
-**macOS / Linux:**
-```bash
 aws lambda invoke --function-name workshop-chatbot-lab10 --region us-east-1 --cli-binary-format raw-in-base64-out --payload file://payload.json response.json
 ```
 
@@ -404,7 +418,11 @@ cat response.json
 
 Now you'll invoke the chatbot a few more times to generate log data, then view the structured JSON logs in CloudWatch.
 
-**Step 6a:** Invoke the chatbot several more times. 📋 Copy and paste:
+**Step 6a:** Invoke the chatbot five times in a row, as fast as possible.
+
+> **⚠️ Heads-up: some of these calls will fail, and that's the point.** The Open Trivia Database allows only **one request every 5 seconds** from the same IP address. Five back-to-back calls break that rule, so the API starts refusing them with `HTTP Error 429: Too Many Requests`. Your code handles it gracefully (the user gets a "Sorry…" message) and logs an `api_call_failed` entry with the reason. You're about to see a **real dependency failure** that has nothing to do with your code, and your structured logs will show exactly what happened.
+
+📋 Copy and paste:
 
 **Windows (PowerShell):**
 ```powershell
@@ -416,7 +434,7 @@ Now you'll invoke the chatbot a few more times to generate log data, then view t
 for i in 1 2 3 4 5; do aws lambda invoke --function-name workshop-chatbot-lab10 --region us-east-1 --cli-binary-format raw-in-base64-out --payload file://payload.json response.json > /dev/null 2>&1; echo "Invocation $i complete"; done
 ```
 
-**✅ You should see** "Invocation 1 complete" through "Invocation 5 complete."
+**✅ You should see** "Invocation 1 complete" through "Invocation 5 complete." Every invocation "completes" either way. The failures only show up in the logs, which you'll check next.
 
 **Step 6b:** Wait about 30 seconds for the logs to arrive in CloudWatch, then view the most recent log entries. 📋 Copy and paste:
 
@@ -440,13 +458,20 @@ aws logs get-log-events --log-group-name /aws/lambda/workshop-chatbot-lab10 --lo
 {"level": "INFO", "event": "request_completed", "request_id": "...", "total_duration_ms": 345.67, "api_latency_ms": 342.15}
 ```
 
+…and, for the rate-limited calls, entries like:
+
+```
+{"level": "ERROR", "event": "api_call_failed", "request_id": "...", "api_url": "...", "api_latency_ms": 85.3, "error": "HTTP Error 429: Too Many Requests"}
+```
+
 > **💡 What you're seeing:** Three structured log entries per invocation:
 > 1. `request_received` — the chatbot got a message from the user
-> 2. `api_call_success` — the external trivia API responded (with latency measured!)
-> 3. `api_call_failed` — the external trivia API failed (likely due to too many requests)
-> 4. `request_completed` — the chatbot finished processing (with total time measured)
+> 2. **Either** `api_call_success` — the trivia API responded (with latency measured!) — **or** `api_call_failed` — the API refused or errored (the `error` field says why)
+> 3. `request_completed` — the chatbot finished processing (with total time measured)
 >
 > Each entry shares the same `request_id`, so you can trace a single request through all its stages. This is called **request tracing** — essential for debugging in production.
+
+> **🔍 Read the failure like an operator.** Notice what the `api_call_failed` entry tells you without any guesswork: *which* dependency failed (`api_url`), *why* (`error`: 429 = rate limit), and *how fast* it failed (`api_latency_ms`, much shorter than a successful call, because the API refused right away). Plain text logs would just say "something went wrong". In Lab 10B you'll turn these failures into a metric and an alarm. In Lab 10C you'll make the chatbot keep answering users even while the API refuses.
 
 ---
 
@@ -456,7 +481,7 @@ Let's see these logs in the AWS Console for a visual view.
 
 **Step 7a:** Open the AWS Console in your browser. Go to **CloudWatch** (search "CloudWatch" in the top search bar).
 
-**Step 7b:** In the left menu, click **Logs** → **Log Management**.
+**Step 7b:** In the left menu, click **Logs** → **Log Management**, which will default to Log groups tab.
 
 **Step 7c:** Find and click on `/aws/lambda/workshop-chatbot-lab10`.
 
@@ -467,9 +492,9 @@ Let's see these logs in the AWS Console for a visual view.
 - Lines starting with `[INFO]` followed by your structured JSON — these are YOUR log entries
 - Lines starting with `REPORT` — Lambda's summary of duration, memory used, and billed duration
 
-**✅ You should see** your structured JSON entries with fields like `"event": "request_received"`, `"event": "api_call_success"`, `"event": "api_call_failed"`, and `"event": "request_completed"`.
+**✅ You should see** your structured JSON entries with fields like `"event": "request_received"`, `"event": "api_call_success"` (or `"api_call_failed"`, logged at `[ERROR]`), and `"event": "request_completed"`.
 
-> **🎯 Why this matters:** In Lab 10B, you'll use CloudWatch Logs Insights to run queries across ALL these log entries at once — for example, "what's the average API latency across all invocations?" or "show me the slowest requests." That's only possible because the logs are structured JSON with consistent field names.
+> **🎯 Why this matters:** In Lab 10B, CloudWatch will read ALL these log entries automatically and turn fields like `api_latency_ms` into graphs and alarms. In Lab 10C, you'll query them with CloudWatch Log Analytics. That's only possible because the logs are structured JSON with consistent field names.
 
 ---
 
@@ -488,7 +513,7 @@ Let's see these logs in the AWS Console for a visual view.
 - Structured logging (JSON with consistent fields) makes debugging at scale possible
 - Every log entry shares a `request_id` so you can trace one request through its entire lifecycle
 - CloudWatch Logs captures everything automatically — you just need to `logger.info()` structured data
-- In Lab 10B, you'll query these logs with CloudWatch Logs Insights to answer operational questions
+- In Lab 10B, you'll turn these logs into metrics, a dashboard, and an alarm; in Lab 10C, you'll query them with CloudWatch Log Analytics
 
 ---
 
@@ -504,7 +529,7 @@ The SAA exam tests:
 - External API integration patterns and failure handling
 
 **Sample question type:** "A development team wants to troubleshoot intermittent latency issues in a Lambda function that calls a third-party API. What approach gives them the most actionable data?"  
-**Answer:** Implement structured JSON logging that records the API latency for each request, then use CloudWatch Logs Insights to query and aggregate latency metrics across invocations.
+**Answer:** Implement structured JSON logging that records the API latency for each request, then use CloudWatch Log Analytics to query and aggregate latency metrics across invocations.
 
 ---
 
@@ -514,10 +539,11 @@ The SAA exam tests:
 |-------|--------------|---------------|
 | `No such file or directory: lambda-trust.json` | You're not in the project folder | Run `cd ~/Desktop/workshop-lab-10a` (or `cd ~\Desktop\workshop-lab-10a` on Windows) and verify with `pwd` |
 | `The role cannot be assumed` when creating the function | IAM role hasn't propagated yet | Wait 10 seconds and try again |
+| `ResourceConflictException ... The function is currently in the following state: Pending` on invoke | The function was invoked before it finished creating | Run Step 4c (`aws lambda wait function-active ...`), then invoke again |
 | `Function already exists` | You (or a previous attempt) already created it | Skip this step, or delete it first: `aws lambda delete-function --function-name workshop-chatbot-lab10 --region us-east-1` |
 | `Unable to import module 'handler'` | The zip structure is wrong — `handler.py` is nested in a subfolder | Delete `function.zip`, make sure you're IN the `workshop-lab-10a` folder (`pwd`), then re-run `Compress-Archive -Path handler.py` (not a path like `.\subfolder\handler.py`) |
 | `Invalid base64` error on invoke | Missing `--cli-binary-format raw-in-base64-out` flag | Re-run the invoke command and make sure the `--cli-binary-format raw-in-base64-out` flag is included |
-| Response shows `"Sorry, I couldn't fetch a trivia question"` | The external trivia API is temporarily down or your Lambda has no internet | Wait a minute and try again; Lambda in the default config has internet access — if it persists, check you're in `us-east-1` |
+| Response shows `"Sorry, I couldn't fetch a trivia question"` | The trivia API refused or failed the call. Most often it's `HTTP Error 429: Too Many Requests` — Open Trivia DB allows **one request per 5 seconds** per IP address — or the API is briefly down | Check the `error` field of the `api_call_failed` log entry (Step 6b). For a 429, wait 5+ seconds and invoke again. A Lambda function that isn't attached to a VPC (like this one) always has internet access, so it's not a network setting |
 | `No such file or directory: payload.json` | You're not in the folder where `payload.json` is saved | Run `pwd` to check, then `cd` to your `workshop-lab-10a` folder |
 | CloudWatch log group not found | Logs take a few seconds to create the first time | Wait 30 seconds after the first invoke and try again |
 | Log stream query returns empty or error | The log group name is case-sensitive | Make sure you use exactly `/aws/lambda/workshop-chatbot-lab10` (all lowercase) |
@@ -537,7 +563,7 @@ The SAA exam tests:
 aws lambda delete-function --function-name workshop-chatbot-lab10 --region us-east-1
 ```
 
-**✅ 204 output means success.**
+**✅ No output means success.**
 
 **Step 2:** Delete the CloudWatch Log Group. 📋 Copy and paste:
 
@@ -560,6 +586,8 @@ aws iam delete-role --role-name workshop-lab10-lambda-role
 **✅ No output means success** for both commands.
 
 **Step 4:** Delete the project folder.
+
+> **⚠️ Close VS Code first.** VS Code keeps the folder open and locks it (especially on Windows), so the delete fails or leaves the folder behind. The `cd` below also moves your terminal out of the folder before deleting it.
 
 **Windows (PowerShell):**
 ```powershell
