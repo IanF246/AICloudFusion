@@ -146,7 +146,7 @@ aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Erro
 
 **macOS / Linux:**
 ```bash
-aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Errors --dimensions "Name=FunctionName,Value=workshop-api-lab9" --start-time $(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%SZ) --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) --period 60 --statistics Sum --region us-east-1
+aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Errors --dimensions "Name=FunctionName,Value=workshop-api-lab9" --start-time $(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-30M +%Y-%m-%dT%H:%M:%SZ) --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) --period 60 --statistics Sum --region us-east-1
 ```
 
 **✅ You should see** a series of datapoints. Look at the pattern:
@@ -166,7 +166,7 @@ aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Invo
 
 **macOS / Linux:**
 ```bash
-aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Invocations --dimensions "Name=FunctionName,Value=workshop-api-lab9" --start-time $(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%SZ) --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) --period 60 --statistics Sum --region us-east-1
+aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Invocations --dimensions "Name=FunctionName,Value=workshop-api-lab9" --start-time $(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-30M +%Y-%m-%dT%H:%M:%SZ) --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) --period 60 --statistics Sum --region us-east-1
 ```
 
 **✅ What to observe:** The invocation count tells you how many requests came in. If errors equal invocations, that means **100% of requests are failing** — a total outage, not a partial degradation. That's critical information for your incident response.
@@ -272,7 +272,7 @@ Write-Host "Query started. ID: $queryId"
 
 **macOS / Linux:**
 ```bash
-QUERY_ID=$(aws logs start-query --log-group-name "/aws/lambda/workshop-api-lab9" --start-time $(date -u -d '1 hour ago' +%s) --end-time $(date -u +%s) --query-string "fields @timestamp, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 10" --region us-east-1 --query "queryId" --output text)
+QUERY_ID=$(aws logs start-query --log-group-name "/aws/lambda/workshop-api-lab9" --start-time $(( $(date +%s) - 3600 )) --end-time $(date +%s) --query-string "fields @timestamp, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 10" --region us-east-1 --query "queryId" --output text)
 echo "Query started. ID: $QUERY_ID"
 ```
 
@@ -317,7 +317,7 @@ aws logs get-query-results --query-id $queryId2 --region us-east-1
 
 **macOS / Linux:**
 ```bash
-QUERY_ID2=$(aws logs start-query --log-group-name "/aws/lambda/workshop-api-lab9" --start-time $(date -u -d '1 hour ago' +%s) --end-time $(date -u +%s) --query-string "filter @message like /ERROR/ | stats count(*) as error_count by bin(1m)" --region us-east-1 --query "queryId" --output text)
+QUERY_ID2=$(aws logs start-query --log-group-name "/aws/lambda/workshop-api-lab9" --start-time $(( $(date +%s) - 3600 )) --end-time $(date +%s) --query-string "filter @message like /ERROR/ | stats count(*) as error_count by bin(1m)" --region us-east-1 --query "queryId" --output text)
 sleep 5
 aws logs get-query-results --query-id "$QUERY_ID2" --region us-east-1
 ```
@@ -445,7 +445,7 @@ aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Erro
 
 **macOS / Linux:**
 ```bash
-aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Errors --dimensions "Name=FunctionName,Value=workshop-api-lab9" --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%SZ) --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) --period 60 --statistics Sum --region us-east-1
+aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Errors --dimensions "Name=FunctionName,Value=workshop-api-lab9" --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-10M +%Y-%m-%dT%H:%M:%SZ) --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) --period 60 --statistics Sum --region us-east-1
 ```
 
 **✅ You should see** the most recent datapoints showing `"Sum": 0.0` — errors have stopped.
