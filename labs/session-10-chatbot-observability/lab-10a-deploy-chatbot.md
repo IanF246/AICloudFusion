@@ -3,7 +3,7 @@
 **Session:** 10 — Chatbot Observability  
 **Track:** Solutions Architecture  
 **Difficulty:** Beginner  
-**Estimated Time:** 35–40 minutes  
+**Estimated Time:** 35–40 minutes (+10–15 minutes for optional Step 8)  
 **Target Cert:** AWS Solutions Architect – Associate (SAA)
 
 ---
@@ -38,6 +38,7 @@ In this lab you'll deploy a "trivia chatbot" Lambda function that:
 
 - ✅ AWS CLI authenticated (`aws sts get-caller-identity` shows your account)
 - ✅ Completed **Lab 1A** (AWS account + CLI setup)
+- ⬜ *Optional (Step 8 only):* your **Lab 1C** website bucket, if you still have it
 
 > **💡 This lab is standalone.** You do NOT need Sessions 7–9 to complete it. The Concepts section below recaps what you need. If you did Labs 9A–9B, the deploy and log-reading steps will feel familiar. That's deliberate, so you can focus on what's new: instrumenting a dependency.
 
@@ -50,6 +51,8 @@ In this lab you'll deploy a "trivia chatbot" Lambda function that:
 | AWS Lambda | Serverless function execution | Always Free (1M requests + 400,000 GB-seconds/month) |
 | Amazon CloudWatch Logs | Log storage and search | Always Free (5 GB/month of log data: ingestion, storage, and Log Analytics scanning) |
 | Open Trivia Database | Third-party public API | Free (not an AWS service) |
+| Lambda Function URL *(optional Step 8)* | Public HTTPS endpoint for the function | No extra charge (you pay only for the Lambda invocations, which are Always Free here) |
+| Amazon S3 *(optional Step 8)* | One small HTML page on your Lab 1C site | `$0.023 per GB/month` storage + `$0.0004 per 1,000` GET requests: a few KB and a handful of page loads round to `$0.00` |
 
 **Estimated cost for this lab: $0.00**
 
@@ -85,6 +88,9 @@ Commands go in your terminal (PowerShell on Windows, Terminal on Mac/Linux). Fil
 |-------------|------------------------|---------|
 | `<YOUR_PROFILE_NAME>` | Your AWS CLI profile name | `AdministratorAccess-123456789012` |
 | `<YOUR_ACCOUNT_ID>` | Your 12-digit AWS account number | `123456789012` |
+| `<YOUR_WEBSITE_BUCKET>` | *(Optional Step 8)* Your Lab 1C website bucket name | `jane-doe-cloud-workshop-site` |
+| `<FUNCTION_URL>` | *(Optional Step 8)* The Function URL printed in Step 8b | `https://abc123xyz.lambda-url.us-east-1.on.aws/` |
+| `<YOUR_DIST_ID>` / `<YOUR_DIST_DOMAIN>` | *(Optional Step 8, 1D path only)* Your CloudFront Distribution ID / domain from Lab 1D | `E1ABC2DEF3GHIJ` / `d123abc.cloudfront.net` |
 
 ---
 
@@ -506,6 +512,204 @@ Let's see these logs in the AWS Console for a visual view.
 
 ---
 
+### Step 8 (Optional): Put Your Chatbot on Your Website
+
+So far you've talked to your chatbot through a CLI payload file. In this optional step you'll give it a real front end: a **Trivia Chatbot** page on the website you built in **Lab 1C**. It's the same pattern Lab 2C used for the File Processor page: a Lambda **Function URL**, one HTML page, and a link from your homepage.
+
+> **⏭️ Skip this step if** you no longer have your Lab 1C website bucket, or you'd rather stay on the CLI. Labs 10B and 10C work the same either way. If you do this step, they'll point out moments worth watching in the browser too.
+
+> **🧭 Did you complete the 1D sidequest (CloudFront + HTTPS)?** Everything below still works. You'll run one extra **cache invalidation** after each upload and use your CloudFront URL. Look for the **"1D path"** notes.
+
+**Step 8a:** Check that your Lab 1C website bucket still exists. 📋 Copy and paste, **replacing `<YOUR_WEBSITE_BUCKET>`** with your Lab 1C bucket name:
+
+```
+aws s3api head-bucket --bucket <YOUR_WEBSITE_BUCKET>
+```
+
+**✅ No output means the bucket exists** — continue. If you get `Not Found` (404), you deleted the site earlier, so skip to **What You Just Did**.
+
+**Step 8b:** Give the chatbot a public URL. 📋 Copy and paste:
+
+```
+aws lambda create-function-url-config --function-name workshop-chatbot-lab10 --auth-type NONE --cors "AllowOrigins=*,AllowMethods=POST,AllowHeaders=*" --region us-east-1
+```
+
+**✅ You should see** JSON with a `FunctionUrl` field, like `https://abc123xyz.lambda-url.us-east-1.on.aws/`.
+
+> **📝 Write down your Function URL:** ______________________________
+>
+> Lost it? Get it back any time with `aws lambda get-function-url-config --function-name workshop-chatbot-lab10 --region us-east-1 --query FunctionUrl --output text`
+
+> **Why does this work with no code changes?** Your handler already reads the user's message from `event["body"]` and returns `statusCode`, `headers`, and `body`. That's exactly the format a Function URL sends and expects. `payload.json` was simulating a web request all along.
+
+**Step 8c:** Allow public access. A Function URL with `--auth-type NONE` needs **both** of these permissions (same as Lab 2C). 📋 Copy and paste both:
+
+```
+aws lambda add-permission --function-name workshop-chatbot-lab10 --statement-id FunctionURLAllowPublicAccess --action lambda:InvokeFunctionUrl --principal "*" --function-url-auth-type NONE --region us-east-1
+```
+
+```
+aws lambda add-permission --function-name workshop-chatbot-lab10 --statement-id AllowPublicInvoke --action lambda:InvokeFunction --principal "*" --region us-east-1
+```
+
+**✅ You should see** a JSON `Statement` for each. **⏳ Wait 1–2 minutes** for the permissions to take effect.
+
+> **⚠️ This URL is public.** Anyone who finds it can invoke your function. That's acceptable here: the function holds no secrets, heavy use stays inside Lambda's Always Free allowance, and cleanup deletes the URL along with the function. Real apps protect public endpoints with authentication and throttling, usually via **API Gateway**, which you'll use in Lab 11A. (Lambda's *reserved concurrency* setting could cap the damage, but AWS requires at least 10 unreserved concurrent executions per account, and many new accounts have a total limit of only 10, so it isn't an option there.)
+
+**Step 8d:** In VS Code, create a new file named `trivia.html`. 📋 Copy and paste this entire block into it, **replacing `<FUNCTION_URL>`** (near the bottom, in the `<script>` section) with your Function URL from Step 8b:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trivia Chatbot</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 700px; margin: 50px auto; padding: 20px; background: #f0f4f8; }
+        h1 { color: #232f3e; }
+        .card { background: white; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin: 20px 0; }
+        button { background: #ff9900; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 6px; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #ec7211; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        button.secondary { background: #232f3e; }
+        button.secondary:hover { background: #37475a; }
+        .status { margin-top: 15px; padding: 12px; border-radius: 6px; display: none; }
+        .status.loading { display: block; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .status.error { display: block; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .question { font-size: 18px; line-height: 1.5; white-space: pre-wrap; }
+        .answer { margin-top: 10px; padding: 12px; background: #d4edda; color: #155724; border-radius: 6px; display: none; }
+        .meta { margin-top: 15px; padding: 15px; background: #1a1a2e; color: #00ff88; border-radius: 6px; white-space: pre-wrap; font-family: monospace; font-size: 14px; }
+        .badge { background: #232f3e; color: white; padding: 4px 10px; border-radius: 4px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <p><a href="index.html" style="color:#232f3e;">&#8592; Back to Home</a></p>
+    <h1>&#127891; Trivia Chatbot</h1>
+    <p>Ask the chatbot for a trivia question. Behind the scenes, AWS Lambda calls the Open Trivia Database and logs every step.</p>
+    <p><span class="badge">Lambda</span> <span class="badge">Function URL</span> <span class="badge">CloudWatch</span></p>
+
+    <div class="card">
+        <button id="askBtn" onclick="askTrivia()">Ask for a trivia question</button>
+        <div id="status" class="status"></div>
+    </div>
+
+    <div id="resultCard" class="card" style="display:none;">
+        <div id="question" class="question"></div>
+        <button id="revealBtn" class="secondary" onclick="document.getElementById('answer').style.display='block'; this.style.display='none';">Show answer</button>
+        <div id="answer" class="answer"></div>
+        <div id="meta" class="meta"></div>
+    </div>
+
+    <script>
+        const CHATBOT_URL = '<FUNCTION_URL>';
+
+        async function askTrivia() {
+            const btn = document.getElementById('askBtn');
+            const statusEl = document.getElementById('status');
+            btn.disabled = true;
+            statusEl.className = 'status loading';
+            statusEl.textContent = 'Asking the chatbot...';
+            const started = performance.now();
+
+            try {
+                const res = await fetch(CHATBOT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: 'Give me a trivia question' })
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                const waitedMs = Math.round(performance.now() - started);
+
+                // Split "Category / Question / Answer" so the answer can be hidden
+                const lines = data.response.split('\n');
+                const answerLine = lines.find(l => l.startsWith('Answer:'));
+                document.getElementById('question').textContent = lines.filter(l => l !== answerLine).join('\n');
+                document.getElementById('answer').textContent = answerLine || '';
+                document.getElementById('answer').style.display = 'none';
+                document.getElementById('revealBtn').style.display = answerLine ? 'inline-block' : 'none';
+
+                // Show the metadata your handler returns (Lab 10C adds mode + source)
+                const m = data.metadata || {};
+                let meta = 'API latency:     ' + m.api_latency_ms + ' ms\n'
+                         + 'Lambda duration: ' + m.total_duration_ms + ' ms\n'
+                         + 'You waited:      ' + waitedMs + ' ms (includes the trip over the internet)';
+                if (m.mode) meta += '\nMode:            ' + m.mode;
+                if (m.source) meta += '\nAnswered by:     ' + m.source;
+                document.getElementById('meta').textContent = meta;
+
+                document.getElementById('resultCard').style.display = 'block';
+                statusEl.className = 'status';
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = 'Error: ' + error.message + ' (check the Function URL in this file and the Step 8c permissions)';
+            }
+
+            btn.disabled = false;
+        }
+    </script>
+</body>
+</html>
+```
+
+**Step 8e:** Save the file (**Ctrl+S** / **Cmd+S**).
+
+> **⚠️ Make sure** you replaced `<FUNCTION_URL>` with your real Function URL (keep the quotes around it) before saving.
+
+> **What does this page do?** When you click the button, it sends a `POST` request to your Function URL with the same JSON body as `payload.json`. It then displays the question, hides the answer until you click **Show answer**, and prints the timing metadata your handler returns. It uses `textContent`, never `innerHTML`, so text from the external API can't inject code into your page.
+
+**Step 8f:** Upload the page. 📋 Copy and paste, **replacing `<YOUR_WEBSITE_BUCKET>`**:
+
+```
+aws s3 cp trivia.html s3://<YOUR_WEBSITE_BUCKET>/trivia.html --content-type "text/html" --region us-east-1
+```
+
+> **🧭 1D path (CloudFront):** refresh CloudFront's cache so it serves the new page (`<YOUR_DIST_ID>` is your Distribution ID from Lab 1D):
+> ```
+> aws cloudfront create-invalidation --distribution-id <YOUR_DIST_ID> --paths "/*"
+> ```
+
+**Step 8g:** Add a link from your homepage. 📋 Download your current homepage into this lab folder, **replacing `<YOUR_WEBSITE_BUCKET>`**:
+
+```
+aws s3 cp s3://<YOUR_WEBSITE_BUCKET>/index.html index.html
+```
+
+Open `index.html` in VS Code. Find the closing `</body>` tag near the bottom and add this line **just above it** (below the File Processor link if you still have it from Lab 2C):
+
+```html
+<p><a href="trivia.html">Ask the Trivia Chatbot &#8594;</a></p>
+```
+
+**Save** the file (**Ctrl+S** / **Cmd+S**), then re-upload it, **replacing `<YOUR_WEBSITE_BUCKET>`**:
+
+```
+aws s3 cp index.html s3://<YOUR_WEBSITE_BUCKET>/index.html --content-type "text/html" --region us-east-1
+```
+
+> **🧭 1D path (CloudFront):** run the cache invalidation again after re-uploading `index.html`.
+
+**Step 8h:** Try it! Open your homepage and click **Ask the Trivia Chatbot**, or go straight to:
+
+```
+http://<YOUR_WEBSITE_BUCKET>.s3-website-us-east-1.amazonaws.com/trivia.html
+```
+
+> **🧭 1D path (CloudFront):** use `https://<YOUR_DIST_DOMAIN>/trivia.html` instead.
+
+1. Click **Ask for a trivia question**. A question appears, with timing details below it
+2. Click **Show answer** to reveal the answer
+3. Now click **Ask for a trivia question** several times, as fast as you can
+
+**✅ You should see** a normal question on the first click. On the rapid clicks you'll get **"Sorry, I couldn't fetch a trivia question right now"**. That's the Open Trivia DB rate limit from Step 6, now experienced as a real user would. Wait 5 seconds and it works again.
+
+> **💡 Compare the three timings.** *API latency* is how long the trivia API took. *Lambda duration* adds your code's own work. *You waited* adds the network trip between your browser and AWS, plus any cold start. Users only ever feel the last number. Your structured logs are what let you break it down.
+
+> **🔗 Every click is logged.** Each button press is a real invocation. Your structured logs (Step 6b) and, in Lab 10B, your dashboard will include this browser traffic alongside your CLI calls.
+
+---
+
 ## What You Just Did
 
 | What You Built | Why It Matters |
@@ -515,6 +719,7 @@ Let's see these logs in the AWS Console for a visual view.
 | Logged structured JSON at every stage | Logs are searchable, filterable, and queryable (not just human-readable) |
 | Viewed structured logs in CloudWatch | You can trace a single request through receive → API call → response |
 | Observed latency metadata in responses | Your application reports its own performance (self-instrumentation) |
+| *(Optional)* Put the chatbot on your Lab 1C website | Same code, now a real user-facing app: a Function URL plus one HTML page |
 
 **Key takeaways:**
 - External API calls are the #1 source of latency and errors in real applications
@@ -555,6 +760,10 @@ The SAA exam tests:
 | `No such file or directory: payload.json` | You're not in the folder where `payload.json` is saved | Run `pwd` to check, then `cd` to your `workshop-lab-10a` folder |
 | CloudWatch log group not found | Logs take a few seconds to create the first time | Wait 30 seconds after the first invoke and try again |
 | Log stream query returns empty or error | The log group name is case-sensitive | Make sure you use exactly `/aws/lambda/workshop-chatbot-lab10` (all lowercase) |
+| Trivia page shows `Error: HTTP 403`, or `HTTP 405` | The Function URL permissions are missing or haven't taken effect yet | Make sure you ran **both** Step 8c `add-permission` commands, then wait 1–2 minutes and try again |
+| Trivia page shows `Error: Failed to fetch` | The browser couldn't reach the URL, or CORS blocked it | Check `trivia.html` has your real Function URL (not `<FUNCTION_URL>`), re-upload it, and confirm the CORS settings with `aws lambda get-function-url-config --function-name workshop-chatbot-lab10 --region us-east-1` (`AllowMethods` must include `POST`) |
+| `ResourceConflictException` on `create-function-url-config` | The function already has a URL (e.g., from an earlier attempt) | Get it with `aws lambda get-function-url-config --function-name workshop-chatbot-lab10 --region us-east-1 --query FunctionUrl --output text` and use that |
+| Trivia page or homepage link doesn't appear (1D path) | CloudFront is serving the cached old version | Run `aws cloudfront create-invalidation --distribution-id <YOUR_DIST_ID> --paths "/*"`, wait a minute, and hard-refresh (**Ctrl+Shift+R** / **Cmd+Shift+R**) |
 | `ExpiredTokenException` or auth errors | Your SSO session expired | Run `aws sso login --profile <YOUR_PROFILE_NAME>`, approve in browser, then re-set your profile variable |
 
 ---
@@ -564,6 +773,26 @@ The SAA exam tests:
 > **💡 If you're continuing to Lab 10B:** Skip cleanup for now — Lab 10B uses this same chatbot function and its logs. Come back here after completing Lab 10B.
 >
 > **If you're stopping here:** Complete these steps to remove all resources.
+
+**Step 0 (only if you did optional Step 8):** Remove the Trivia Chatbot page from your website, so your site has no broken button once the function is gone. Your Lab 1C site itself stays. 📋 Delete the page, **replacing `<YOUR_WEBSITE_BUCKET>`**:
+
+```
+aws s3 rm s3://<YOUR_WEBSITE_BUCKET>/trivia.html
+```
+
+Then download your current homepage, delete the `Ask the Trivia Chatbot` link line in VS Code, **Save**, and re-upload it:
+
+```
+aws s3 cp s3://<YOUR_WEBSITE_BUCKET>/index.html index.html
+```
+
+```
+aws s3 cp index.html s3://<YOUR_WEBSITE_BUCKET>/index.html --content-type "text/html" --region us-east-1
+```
+
+> **🧭 1D path (CloudFront):** run `aws cloudfront create-invalidation --distribution-id <YOUR_DIST_ID> --paths "/*"` so CloudFront stops serving the removed page.
+
+The Function URL and its two permissions are deleted automatically along with the function in Step 1.
 
 **Step 1:** Delete the Lambda function. 📋 Copy and paste:
 
