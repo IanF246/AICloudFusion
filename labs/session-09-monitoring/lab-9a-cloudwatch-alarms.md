@@ -22,6 +22,17 @@ In this lab you'll set up the monitoring foundation that professional teams rely
 
 **The feedback loop:** You'll start with a function that works — and no alerting. Then you'll see that when errors happen, nobody notices. After adding the alarm, the *same errors* now trigger immediate notification. Monitoring turns silent failures into visible, actionable alerts.
 
+> **🗺️ Observability arc — Session 9 of 2 (your code).** Sessions 9 and 10 build the same four capabilities, first for your own code, then for the things your code depends on:
+>
+> | Capability | Session 9 — Your code | Session 10 — Your dependencies |
+> |---|---|---|
+> | **Instrument** | **9A: structured logs for your own function** ← you are here | 10A: structured logs for the external API call |
+> | **Detect** | **9A: alarm on Lambda's built-in `Errors` metric** ← you are here | 10B: custom metrics + alarm on dependency latency |
+> | **Diagnose** | 9B: log streams + Log Analytics find the bug | 10C: Log Analytics shows *why* the bot fell back |
+> | **Prevent / Tolerate** | 9C: smoke test blocks bad deploys | 10C: automatic fallback + circuit breaker |
+>
+> Session 9 assumes failures come from *your* code, so Lambda's built-in metrics can see them. Session 10 shows what happens when they don't.
+
 ---
 
 ## Prerequisites
@@ -324,8 +335,10 @@ aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Invo
 
 **macOS / Linux:**
 ```bash
-aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Invocations --dimensions "Name=FunctionName,Value=workshop-api-lab9" --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%SZ) --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) --period 60 --statistics Sum --region us-east-1
+aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Invocations --dimensions "Name=FunctionName,Value=workshop-api-lab9" --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-10M +%Y-%m-%dT%H:%M:%SZ) --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) --period 60 --statistics Sum --region us-east-1
 ```
+
+> **Why the `||` in the macOS / Linux command?** Linux's `date` understands `-d '10 minutes ago'`, but macOS's `date` doesn't. It uses `-v-10M` instead. The `||` tries the Linux form first and falls back to the macOS form if that fails. You'll see this pattern again in Sessions 9 and 10.
 
 **✅ You should see** JSON with `"Datapoints"` showing your invocations. The `"Sum"` values should add up to 6 (your 1 + 5 invocations).
 
@@ -340,7 +353,7 @@ aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Erro
 
 **macOS / Linux:**
 ```bash
-aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Errors --dimensions "Name=FunctionName,Value=workshop-api-lab9" --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%SZ) --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) --period 60 --statistics Sum --region us-east-1
+aws cloudwatch get-metric-statistics --namespace "AWS/Lambda" --metric-name Errors --dimensions "Name=FunctionName,Value=workshop-api-lab9" --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-10M +%Y-%m-%dT%H:%M:%SZ) --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) --period 60 --statistics Sum --region us-east-1
 ```
 
 **✅ You should see** `"Sum": 0.0` — no errors. This is your **healthy baseline**. Remember this: zero errors means your app is running correctly.
