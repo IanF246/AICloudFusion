@@ -1,4 +1,4 @@
-# Lab 10A: Deploy a Trivia Chatbot — Your First Structured Logging App
+# Lab 10A: Deploy a Trivia Chatbot — Structured Logging for an External Dependency
 
 **Session:** 10 — Chatbot Observability  
 **Track:** Solutions Architecture  
@@ -10,7 +10,7 @@
 
 ## Overview
 
-In the real world, applications don't just run in isolation — they call external APIs, process user input, and respond in milliseconds. When something goes wrong (a slow API, a timeout, a bad response), you need to know **exactly what happened and when**. That's where structured logging comes in.
+In the real world, applications don't just run in isolation — they call external APIs, process user input, and respond in milliseconds. When something goes wrong (a slow API, a timeout, a bad response), you need to know **exactly what happened and when**, even though the broken part isn't your code.
 
 In this lab you'll deploy a "trivia chatbot" Lambda function that:
 
@@ -19,9 +19,18 @@ In this lab you'll deploy a "trivia chatbot" Lambda function that:
 3. **Returns a formatted response** with category, question, and answer
 4. **Logs structured JSON** to CloudWatch at every stage (request received, API call result with latency, request completed)
 
-**Why structured logging?** Plain text logs look like `"Got a request from user"` — fine for a developer reading one log, but impossible to search or filter across thousands. Structured JSON logs like `{"event": "api_call_success", "api_latency_ms": 342}` let you query, filter, and alert on specific fields. In Lab 10B, you'll turn these structured logs into metrics, a dashboard, and an alarm that answer questions like "what's our API latency?" and "how many requests failed?"
+**What's new compared to Session 9?** In Lab 9A you already logged structured JSON (`"Request received"`, `duration_ms`) for a function with no dependencies. This lab applies the same technique to the riskiest part of a real app: **the call to something you don't control**. Every call logs *which* dependency was called, *how long* it took, *what status* came back, and *why* it failed, all tied together by a `request_id`. In Lab 10B, you'll turn those fields into metrics, a dashboard, and an alarm that answer questions like "what's our API latency?" and "how many requests failed?"
 
-> **🔗 Well-Architected callback — Operational Excellence, continued from Session 9.** In Session 9 you detected a failing function with an alarm (9A), diagnosed it from its logs (9B), and blocked bad deploys with a smoke test (9C). Those logs were plain text you read one line at a time. Session 10 takes the next step: an app that calls a dependency you *don't* control, with logs designed to be queried, not just read. Operational Excellence means instrumenting your workload so you understand its health, including the services it relies on.
+> **🔗 Well-Architected callback — Operational Excellence, continued from Session 9.** In Session 9 you detected a failing function with an alarm (9A), diagnosed it from its logs (9B), and blocked bad deploys with a smoke test (9C). Every failure there was in *your own code*. Session 10 takes the next step: an app that calls a dependency you *don't* control, and structured logs that measure that dependency's latency, status, and errors on every call. Operational Excellence means instrumenting your workload so you understand its health, including the services it relies on.
+
+> **🗺️ Observability arc — Session 10 of 2 (your dependencies).** Sessions 9 and 10 build the same four capabilities, first for your own code, then for the things your code depends on:
+>
+> | Capability | Session 9 — Your code | Session 10 — Your dependencies |
+> |---|---|---|
+> | **Instrument** | 9A: structured logs for your own function | **10A: structured logs for the external API call** ← you are here |
+> | **Detect** | 9A: alarm on Lambda's built-in `Errors` metric | 10B: custom metrics + alarm on dependency latency |
+> | **Diagnose** | 9B: log streams + Log Analytics find the bug | 10C: Log Analytics shows *why* the bot fell back |
+> | **Prevent / Tolerate** | 9C: smoke test blocks bad deploys | 10C: automatic fallback + circuit breaker |
 
 ---
 
@@ -30,7 +39,7 @@ In this lab you'll deploy a "trivia chatbot" Lambda function that:
 - ✅ AWS CLI authenticated (`aws sts get-caller-identity` shows your account)
 - ✅ Completed **Lab 1A** (AWS account + CLI setup)
 
-> **💡 This lab is standalone.** You do NOT need Sessions 7–9 to complete it. If you completed Lab 9A, great — this builds on the same concepts with a more realistic application.
+> **💡 This lab is standalone.** You do NOT need Sessions 7–9 to complete it. The Concepts section below recaps what you need. If you did Labs 9A–9B, the deploy and log-reading steps will feel familiar. That's deliberate, so you can focus on what's new: instrumenting a dependency.
 
 ---
 
@@ -54,16 +63,15 @@ Lambda and CloudWatch Logs are **Always Free** services, which stay free on any 
 
 **External API Call** — when your code calls another service over the internet to get data. In this lab, your Lambda function calls the Open Trivia Database API to fetch a trivia question. This is how real applications work: a chatbot might call OpenAI, a weather app calls a weather API, a payment system calls Stripe. The challenge? External APIs can be slow, return errors, or go down entirely — and you need to know when that happens.
 
-**Structured Logging** — writing log messages as JSON objects with consistent fields instead of free-text strings. Instead of `print("Got a question from the user")`, you write `logger.info(json.dumps({"event": "request_received", "user_message": "..."}))`. This makes logs:
-- **Searchable** — find all entries where `event` equals `api_call_failed`
-- **Filterable** — show only entries where `api_latency_ms` is greater than 500
-- **Alertable** — trigger a notification when `level` equals `ERROR`
+**Structured Logging (recap from Labs 9A/9B)** — writing log messages as JSON objects with consistent fields instead of free-text strings, e.g. `logger.info(json.dumps({"event": "request_received", ...}))` instead of `print("Got a question")`. JSON fields are **searchable** (all entries where `event` is `api_call_failed`), **filterable** (`api_latency_ms` greater than 500), and **alertable** (notify when `level` is `ERROR`). Plain text like `Called trivia API, took 342ms` holds the same information, but you can't reliably aggregate or alarm on it.
 
-**JSON Logging vs Plain Text** — compare these two CloudWatch log entries:
-- Plain text: `INFO: Called trivia API, took 342ms, got back a question about Science`
-- Structured JSON: `{"event": "api_call_success", "api_latency_ms": 342, "api_status": 200}`
+**Instrumenting a Dependency Call** — the new idea in this lab. Wrap every external call with a timer and log the result as its own event, with the fields you'll need during an incident:
+- `event` — a stable name for *what happened* (`api_call_success` / `api_call_failed`), so you can count each outcome
+- `api_url` — *which* dependency, so you can tell it apart once your app calls several
+- `api_latency_ms` — *how long* it took, so you can spot slowness before it becomes failure
+- `api_status` / `error` — *what came back*, so you can tell a rate limit (`429`) from an outage (timeout)
 
-Both contain the same info, but only the JSON version lets you run queries like "average api_latency_ms over the last hour" or "count of entries where api_status != 200." Production teams always use structured logging because they operate at a scale where reading individual log lines is impossible.
+**Request Tracing** — every log entry for one invocation carries the same `request_id`. When one request misbehaves, you can pull out exactly its three entries (received → API call → completed) from thousands of others.
 
 **CloudWatch Logs** — AWS's log storage and query service. Every Lambda function automatically sends its `print()` and `logger.info()` output here. You can view logs in the console, search them, turn them into metrics with **metric filters** (Lab 10B), and run SQL-like queries across them with **CloudWatch Log Analytics** (Lab 10C).
 
@@ -510,7 +518,7 @@ Let's see these logs in the AWS Console for a visual view.
 
 **Key takeaways:**
 - External API calls are the #1 source of latency and errors in real applications
-- Structured logging (JSON with consistent fields) makes debugging at scale possible
+- The structured logging you learned in Session 9 pays off most around dependency calls: log *which* dependency, *how long*, *what status*, and *why it failed*
 - Every log entry shares a `request_id` so you can trace one request through its entire lifecycle
 - CloudWatch Logs captures everything automatically — you just need to `logger.info()` structured data
 - In Lab 10B, you'll turn these logs into metrics, a dashboard, and an alarm; in Lab 10C, you'll query them with CloudWatch Log Analytics
